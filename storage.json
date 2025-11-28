@@ -3,7 +3,7 @@
   "LogLevel": "Debug",
   "Tiers": [
     {
-      "target": 90,
+      "target": 85,
       "path": "/mnt/hot"
     },
     {
