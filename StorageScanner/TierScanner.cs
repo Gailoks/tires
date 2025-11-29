@@ -1,6 +1,5 @@
 using Microsoft.Extensions.Logging;
 using Tires.Primitives;
-using System.Runtime.InteropServices;
 using Mono.Unix.Native;
 
 namespace Tires.Storage;
@@ -65,79 +64,57 @@ public class TierScanner : ITierScanner
     }
 
     private async Task AddFile(string path)
+{
+    await Task.Yield();
+
+    try
     {
-        await Task.Yield();
-
-        try
+        var st = new Stat();
+        if (Syscall.stat(path, out st) != 0)
         {
-            var st = new Stat();
-            if (Syscall.stat(path, out st) != 0)
-            {
-                _logger.LogWarning("stat() failed on {File}", path);
-                return;
-            }
-
-            // file type mask
-            FilePermissions type = st.st_mode & FilePermissions.S_IFMT;
-
-            // skip EVERYTHING except regular files
-            switch (type)
-            {
-                case FilePermissions.S_IFREG:
-                    break;
-
-                case FilePermissions.S_IFLNK:
-                    _logger.LogDebug("Skipping symlink {File}", path);
-                    return;
-
-                case FilePermissions.S_IFIFO:
-                    _logger.LogDebug("Skipping FIFO {File}", path);
-                    return;
-
-                case FilePermissions.S_IFSOCK:
-                    _logger.LogDebug("Skipping socket {File}", path);
-                    return;
-
-                case FilePermissions.S_IFCHR:
-                case FilePermissions.S_IFBLK:
-                    _logger.LogDebug("Skipping device node {File}", path);
-                    return;
-
-                case FilePermissions.S_IFDIR:
-                    // Should never happen here
-                    return;
-
-                default:
-                    _logger.LogDebug("Skipping unsupported file type {File}", path);
-                    return;
-            }
-
-            ulong inode = st.st_ino;
-            long size = st.st_size;
-
-            if (_files.TryGetValue(inode, out var existing))
-            {
-                existing.Paths.Add(path);
-                return;
-            }
-
-            var entry = new FileEntry(
-                Paths: new List<string> { path },
-                Inode: inode,
-                Size: size,
-                TierIndex: _tierIndex
-            );
-
-            _files[inode] = entry;
-
-            _logger.LogDebug(
-                "Tier {Tier}: {File} Size={Size} inode={Inode}",
-                _tierIndex, path, size, inode
-            );
+            _logger.LogWarning("stat() failed on {File}", path);
+            return;
         }
-        catch (Exception ex)
+
+        FilePermissions type = st.st_mode & FilePermissions.S_IFMT;
+        if (type != FilePermissions.S_IFREG)
         {
-            _logger.LogWarning(ex, "Failed to add file {File}", path);
+            _logger.LogDebug("Skipping non-regular file {File}", path);
+            return;
         }
+
+        ulong inode = st.st_ino;
+        long size = st.st_size;
+
+        int uid = (int)st.st_uid;
+        int gid = (int)st.st_gid;
+        int mode = (int)st.st_mode & 0xFFF; // обычные права rwxrwxrwx
+
+        var pathInfo = new FileEntryPathInfo(path, uid, gid, mode);
+
+        if (_files.TryGetValue(inode, out var existing))
+        {
+            existing.Paths.Add(pathInfo);
+            return;
+        }
+
+        var entry = new FileEntry(
+            Paths: new List<FileEntryPathInfo> { pathInfo },
+            Inode: inode,
+            Size: size,
+            TierIndex: _tierIndex
+        );
+
+        _files[inode] = entry;
+
+        _logger.LogDebug(
+            "Tier {Tier}: {File} Size={Size} inode={Inode} uid={Uid} gid={Gid} mode={Mode}",
+            _tierIndex, path, size, inode, uid, gid, mode
+        );
     }
+    catch (Exception ex)
+    {
+        _logger.LogWarning(ex, "Failed to add file {File}", path);
+    }
+}
 }

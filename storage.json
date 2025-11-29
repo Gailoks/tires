@@ -1,6 +1,7 @@
 {
 	"IterationLimit": 20,
 	"LogLevel": "Debug",
+	"TemporaryPath":"tmp",
 	"Tiers": [
 		{
 			"target": 90,

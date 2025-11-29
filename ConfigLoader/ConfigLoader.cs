@@ -13,7 +13,6 @@ public class ConfigLoader : IConfigLoader
             PropertyNameCaseInsensitive = true
         };
 
-        // 🌟 Добавить ЭТО обязательно
         options.Converters.Add(new JsonStringEnumConverter());
 
         var config = JsonSerializer.Deserialize<Configuration>(json, options)
@@ -22,6 +21,7 @@ public class ConfigLoader : IConfigLoader
         Console.WriteLine("Number of tiers: {0}", config.Tiers.Count);
         Console.WriteLine("Iteration Limit: {0}", config.IterationLimit);
         Console.WriteLine("Log level from config: {0}", config.LogLevel);
+		Console.WriteLine("Temporary path from config: {0}", config.TemporaryPath);
 
         return config;
     }

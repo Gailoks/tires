@@ -6,4 +6,5 @@ public class Configuration
     public required List<TierConfig> Tiers { get; set; }
 	public required int IterationLimit {get; set; }
 	public LogLevel LogLevel { get; set; } = LogLevel.Information;
+	public string TemporaryPath {get; set; } = "tmp";
 }
