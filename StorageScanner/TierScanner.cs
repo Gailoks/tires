@@ -1,115 +1,143 @@
 using Microsoft.Extensions.Logging;
 using Tires.Primitives;
 using System.Runtime.InteropServices;
+using Mono.Unix.Native;
 
 namespace Tires.Storage;
 
 public class TierScanner : ITierScanner
 {
-	private readonly string _path;
-	private readonly int _tierIndex;
-	private readonly ILogger _logger;
-	private readonly Dictionary<long, FileEntry> _files = new();
+    private readonly string _path;
+    private readonly int _tierIndex;
+    private readonly ILogger _logger;
+    private readonly Dictionary<ulong, FileEntry> _files = new();
 
-	public TierScanner(ILogger logger, int tierIndex, string path)
-	{
-		_logger = logger;
-		_tierIndex = tierIndex;
-		_path = path;
-	}
+    public TierScanner(ILogger logger, int tierIndex, string path)
+    {
+        _logger = logger;
+        _tierIndex = tierIndex;
+        _path = path;
+    }
 
-	public async Task<List<FileEntry>> Scan()
-	{
-		var stack = new Stack<string>();
-		stack.Push(_path);
+    public async Task<List<FileEntry>> Scan()
+    {
+        var stack = new Stack<string>();
+        stack.Push(_path);
 
-		while (stack.Count > 0)
-		{
-			string dir = stack.Pop();
+        while (stack.Count > 0)
+        {
+            string dir = stack.Pop();
 
-			IEnumerable<string> dirs;
-			IEnumerable<string> files;
+            IEnumerable<string> dirs;
+            IEnumerable<string> files;
 
-			try
-			{
-				dirs = Directory.EnumerateDirectories(dir);
-				files = Directory.EnumerateFiles(dir);
-			}
-			catch (Exception ex)
-			{
-				_logger.LogWarning(ex, "Cannot read directory {Dir}", dir);
-				continue;
-			}
+            try
+            {
+                dirs = Directory.EnumerateDirectories(dir);
+                files = Directory.EnumerateFiles(dir);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Cannot read directory {Dir}", dir);
+                continue;
+            }
 
-			foreach (var d in dirs)
-			{
-				try
-				{
-					var attr = File.GetAttributes(d);
-					if (!attr.HasFlag(FileAttributes.ReparsePoint))
-						stack.Push(d);
-					else
-						await AddFile(d); 
-				}
-				catch
-				{
-				}
-			}
+            // push subdirectories
+            foreach (var d in dirs)
+            {
+                try
+                {
+                    var attr = File.GetAttributes(d);
+                    if (!attr.HasFlag(FileAttributes.ReparsePoint))
+                        stack.Push(d);
+                }
+                catch { }
+            }
 
-			foreach (var f in files)
-			{
-				await AddFile(f);
-			}
-		}
+            // process files
+            foreach (var f in files)
+            {
+                await AddFile(f);
+            }
+        }
 
-		return _files.Values.ToList();
-	}
+        return _files.Values.ToList();
+    }
 
-	private async Task AddFile(string path)
-	{
-		await Task.Yield();
+    private async Task AddFile(string path)
+    {
+        await Task.Yield();
 
-		FileInfo fi;
-		try
-		{
-			fi = new FileInfo(path);
-		}
-		catch
-		{
-			return;
-		}
+        try
+        {
+            var st = new Stat();
+            if (Syscall.stat(path, out st) != 0)
+            {
+                _logger.LogWarning("stat() failed on {File}", path);
+                return;
+            }
 
-		long inode = GetInode(fi);
-		long size = fi.Exists ? fi.Length : 0;
+            // file type mask
+            FilePermissions type = st.st_mode & FilePermissions.S_IFMT;
 
-		if (_files.TryGetValue(inode, out var existing))
-		{
-			existing.Paths.Add(path);
-			return;
-		}
+            // skip EVERYTHING except regular files
+            switch (type)
+            {
+                case FilePermissions.S_IFREG:
+                    break;
 
-		var entry = new FileEntry(
-			Paths: new List<string> { path },
-			Inode: inode,
-			Size: size,
-			TierIndex: _tierIndex
-		);
+                case FilePermissions.S_IFLNK:
+                    _logger.LogDebug("Skipping symlink {File}", path);
+                    return;
 
-		_files[inode] = entry;
+                case FilePermissions.S_IFIFO:
+                    _logger.LogDebug("Skipping FIFO {File}", path);
+                    return;
 
-		_logger.LogDebug("Tier {Tier}: {File} (inode={Inode})", _tierIndex, path, inode);
-	}
+                case FilePermissions.S_IFSOCK:
+                    _logger.LogDebug("Skipping socket {File}", path);
+                    return;
 
+                case FilePermissions.S_IFCHR:
+                case FilePermissions.S_IFBLK:
+                    _logger.LogDebug("Skipping device node {File}", path);
+                    return;
 
-	private static long GetInode(FileInfo fi)
-	{
-		if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-		{
-			var st = new Mono.Unix.Native.Stat();
-			if (Mono.Unix.Native.Syscall.stat(fi.FullName, out st) == 0)
-				return (long)st.st_ino;
-		}
+                case FilePermissions.S_IFDIR:
+                    // Should never happen here
+                    return;
 
-		return fi.FullName.GetHashCode();
-	}
+                default:
+                    _logger.LogDebug("Skipping unsupported file type {File}", path);
+                    return;
+            }
+
+            ulong inode = st.st_ino;
+            long size = st.st_size;
+
+            if (_files.TryGetValue(inode, out var existing))
+            {
+                existing.Paths.Add(path);
+                return;
+            }
+
+            var entry = new FileEntry(
+                Paths: new List<string> { path },
+                Inode: inode,
+                Size: size,
+                TierIndex: _tierIndex
+            );
+
+            _files[inode] = entry;
+
+            _logger.LogDebug(
+                "Tier {Tier}: {File} Size={Size} inode={Inode}",
+                _tierIndex, path, size, inode
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to add file {File}", path);
+        }
+    }
 }

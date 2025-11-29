@@ -20,12 +20,11 @@ public class TierMover : ITierMover
 		_iterationLimit = configuration.IterationLimit;
 	}
 
-	private bool FileAlreadyInTier(int targetTier, FileEntry file) => file.TierIndex == targetTier;
-
 	private bool CanFit(Tier tier, FileEntry file) => file.Size <= tier.Free;
 	public bool MoveFile(FileEntry file, int targetTier)
 	{
 		int sourceTier = file.TierIndex;
+		_logger.LogDebug("Moving inode: {Inode}\n files: {File}",file.Inode, string.Join(", ",file.Paths));
 
 		if (sourceTier == targetTier)
 		{
@@ -51,53 +50,37 @@ public class TierMover : ITierMover
 			Directory.CreateDirectory(Path.GetDirectoryName(dstMainPath)!);
 
 			var srcInfo = new FileInfo(srcMain);
-			bool isSymlink = srcInfo.Attributes.HasFlag(FileAttributes.ReparsePoint);
 
-			if (isSymlink)
+			string tmp = dstMainPath + ".tmp";
+			File.Copy(srcMain, tmp, overwrite: true);
+
+			File.Move(tmp, dstMainPath, true);
+
+			for (int i = 1; i < file.Paths.Count; i++)
 			{
-				var linkInfo = new Mono.Unix.UnixSymbolicLinkInfo(srcMain);
-				string target = linkInfo.ContentsPath;
+				string originalRel = Path.GetRelativePath(src._path, file.Paths[i]);
+				string dstPath = Path.Combine(dst._path, originalRel);
+				Directory.CreateDirectory(Path.GetDirectoryName(dstPath)!);
 
-				var newLink = new Mono.Unix.UnixSymbolicLinkInfo(dstMainPath);
-				newLink.CreateSymbolicLinkTo(target);
-			}
-			else
-			{
-				string tmp = dstMainPath + ".tmp";
-				File.Copy(srcMain, tmp, overwrite: true);
-
-				File.Move(tmp, dstMainPath, true);
-
-				for (int i = 1; i < file.Paths.Count; i++)
-				{
-					string originalRel = Path.GetRelativePath(src._path, file.Paths[i]);
-					string dstPath = Path.Combine(dst._path, originalRel);
-					Directory.CreateDirectory(Path.GetDirectoryName(dstPath)!);
-
-					Syscall.link(dstMainPath, dstPath);
-				}
-
-				foreach (var oldPath in file.Paths)
-				{
-					if (File.Exists(oldPath))
-						File.Delete(oldPath);
-				}
+				Syscall.link(dstMainPath, dstPath);
 			}
 
-			file.TierIndex = targetTier;
-			file.Paths = file.Paths
-				.Select(p => Path.Combine(dst._path, Path.GetRelativePath(src._path, p)))
-				.ToList();
+			foreach (var oldPath in file.Paths)
+			{
+				if (File.Exists(oldPath))
+					File.Delete(oldPath);
+			}
+
 
 			src.Free += file.Size;
 			dst.Free -= file.Size;
 
-			_logger.LogInformation("Moved inode={Inode} from {Src} → {Dst}", file.Inode, src._path, dst._path);
+			_logger.LogInformation("Moved files: {Files}\n inode: {Inode}\n from {Src} → {Dst}",string.Join(", ", file.Paths), file.Inode, src._path, dst._path);
 			return true;
 		}
 		catch (Exception ex)
 		{
-			_logger.LogWarning(ex, "Failed to move inode={Inode} from {Src} → {Dst}", file.Inode, src._path, dst._path);
+			_logger.LogWarning(ex, "Failed to move files: {Files}\n inode: {Inode}\n from {Src} → {Dst}",string.Join(", ", file.Paths), file.Inode, src._path, dst._path);
 			return false;
 		}
 	}
@@ -105,20 +88,18 @@ public class TierMover : ITierMover
 	public void ApplyPlan(List<FileEntry> fileEntries, List<int> boundaries)
 	{
 		var files = fileEntries;
-		_logger.LogInformation("Total files to distribute: {Count}", files.Count);
-
+		_logger.LogInformation("Total files to move: {Count}", files.Count);
 
 		int totalFiles = files.Count;
-		int tierCount = _tiers.Count;
 
-		List<int> targetTier = new(totalFiles);
+		int[] targetTier = new int[totalFiles];
 		int currentTier = 0;
 		int start = 0;
 
 		foreach (int end in boundaries)
 		{
 			for (int i = start; i <= end && i < totalFiles; i++)
-				targetTier.Add(currentTier);
+				targetTier[i] = currentTier;
 
 			start = end + 1;
 			currentTier++;
@@ -136,7 +117,7 @@ public class TierMover : ITierMover
 
 				if (files[i].TierIndex == desired)
 					continue;
-
+				
 				if (MoveFile(files[i], desired))
 				{
 					files[i] = files[i] with { TierIndex = desired };
@@ -150,7 +131,7 @@ public class TierMover : ITierMover
 			iterations++;
 		}
 
-		_logger.LogInformation("Distribution complete after {Iterations} iterations", iterations);
+		_logger.LogInformation("Moving completed after {Iterations} iterations", iterations);
 	}
 
 }

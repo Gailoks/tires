@@ -1,14 +1,14 @@
 {
-  "IterationLimit": 20,
-  "LogLevel": "Debug",
-  "Tiers": [
-    {
-      "target": 85,
-      "path": "/mnt/hot"
-    },
-    {
-      "target": 100,
-      "path": "/mnt/cold"
-    }
-  ]
+	"IterationLimit": 20,
+	"LogLevel": "Debug",
+	"Tiers": [
+		{
+			"target": 90,
+			"path": "/mnt/hot"
+		},
+		{
+			"target": 100,
+			"path": "/mnt/cold"
+		}
+	]
 }

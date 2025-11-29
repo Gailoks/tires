@@ -30,5 +30,6 @@ var mover = serviceProvider.GetRequiredService<ITierMover>();
 
 var files = scanner.GetSortedFiles();
 var indexes = planner.Distribute(files);
+
 mover.ApplyPlan(files,indexes);
 

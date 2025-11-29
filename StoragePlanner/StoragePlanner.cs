@@ -2,17 +2,18 @@ using Microsoft.Extensions.Logging;
 using Tires.Primitives;
 using Tires.Config;
 namespace Tires.Storage;
+
 public class StoragePlanner : IStoragePlanner
-{	
+{
 	private readonly ILogger<StorageScanner> _logger;
 	private List<Tier> _tiers;
 	public StoragePlanner(ILogger<StorageScanner> logger, Configuration configuration)
-    {
-        _logger = logger;
+	{
+		_logger = logger;
 		_tiers = configuration.Tiers
-    		.Select(tc => new Tier(tc))
-    		.ToList();
-    }
+			.Select(tc => new Tier(tc))
+			.ToList();
+	}
 
 
 	public List<int> Distribute(List<FileEntry> files)
@@ -44,6 +45,12 @@ public class StoragePlanner : IStoragePlanner
 			currentIndex = lastIndex + 1;
 		}
 		_logger.LogInformation("Distribution finished");
+		var start = 0;
+		for (int i = 0; i < _tiers.Count; i++)
+		{
+			_logger.LogDebug($"Indexes for distribution: {start} - {indexes[i]} for Tier {i}");
+			start = indexes[i] + 1;
+		}
 		return indexes;
 	}
 

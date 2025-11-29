@@ -1,3 +1,3 @@
 namespace Tires.Primitives;
 
-public record struct FileEntry(List<string> Paths,long Inode,long Size, int TierIndex);
+public record struct FileEntry(List<string> Paths,ulong Inode,long Size, int TierIndex);
