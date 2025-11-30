@@ -5,4 +5,5 @@ public interface ITierScanner
 {
 	
     public Task<List<FileEntry>> Scan();
+
 }

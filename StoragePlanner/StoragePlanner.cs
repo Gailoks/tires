@@ -1,18 +1,21 @@
 using Microsoft.Extensions.Logging;
 using Tires.Primitives;
 using Tires.Config;
+using System.Drawing;
 namespace Tires.Storage;
 
 public class StoragePlanner : IStoragePlanner
 {
 	private readonly ILogger<StorageScanner> _logger;
 	private List<Tier> _tiers;
+	public long[] Sizes { get; set; }
 	public StoragePlanner(ILogger<StorageScanner> logger, Configuration configuration)
 	{
 		_logger = logger;
 		_tiers = configuration.Tiers
 			.Select(tc => new Tier(tc))
 			.ToList();
+		Sizes = new long[_tiers.Count];
 	}
 
 
@@ -22,9 +25,12 @@ public class StoragePlanner : IStoragePlanner
 		List<int> indexes = new();
 		int currentIndex = 0;
 
-		foreach (var tier in _tiers)
+		for(int a = 0; a < _tiers.Count; a++)
 		{
-			long allowedBytes = tier.AllowedSpace;
+			var tier = _tiers[a];
+			var size = Sizes[a]; // Real size movable files
+			long allowedBytes = tier.Free  + size; // Overall approved space for target without immovable data
+			_logger.LogDebug("Tier allowed bytes: {Allowed}",allowedBytes);
 			long cumulative = 0;
 			int lastIndex = currentIndex - 1;
 

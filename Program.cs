@@ -29,6 +29,8 @@ var planner = serviceProvider.GetRequiredService<IStoragePlanner>();
 var mover = serviceProvider.GetRequiredService<ITierMover>();
 
 var files = scanner.GetSortedFiles();
+
+planner.Sizes = scanner.Sizes;
 var indexes = planner.Distribute(files);
 
 mover.ApplyPlan(files,indexes);
