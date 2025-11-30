@@ -73,7 +73,7 @@ public class TierMover : ITierMover
 			dst.Free -= file.Size;
 
 			_logger.LogInformation(
-				"Moved files: {Files}\n inode: {Inode}\n mode: {Mode}\n owner: {Owner}\n group:{Group} from {Src} → {Dst}",
+				"Moved files: {Files}\n inode: {Inode}\n mode: {Mode}\n owner: {Owner}\n group: {Group}\n from {Src} to {Dst}",
 				string.Join(", ", file.Paths), file.Inode,file.Mode,file.OwnerUid, file.GroupGid, src._path, dst._path);
 
 			return true;
@@ -82,7 +82,7 @@ public class TierMover : ITierMover
 		{
 			_logger.LogWarning(
 				ex,
-				"Failed to move files: {Files}\n inode: {Inode}\n mode: {Mode}\n owner: {Owner}\n group:{Group} from {Src} → {Dst}",
+				"Failed to move files: {Files}\n inode: {Inode}\n mode: {Mode}\n owner: {Owner}\n group: {Group}\n from {Src} to {Dst}",
 				string.Join(", ", file.Paths), file.Inode,file.Mode,file.OwnerUid, file.GroupGid, src._path, dst._path);
 			return false;
 		}
