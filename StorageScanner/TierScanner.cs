@@ -41,7 +41,6 @@ public class TierScanner : ITierScanner
                 continue;
             }
 
-            // push subdirectories
             foreach (var d in dirs)
             {
                 try
@@ -53,7 +52,6 @@ public class TierScanner : ITierScanner
                 catch { }
             }
 
-            // process files
             foreach (var f in files)
             {
                 await AddFile(f);

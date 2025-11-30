@@ -23,7 +23,7 @@ public class Tier
 	public string _path => _config.Path;
 	public int Target => _config.Target;
 
-	public long Free { get => _free > _allowed ? _allowed : _free; set => _free = value; }
+	public long Free { get => _free; set => _free = value; }
 	public long Space { get => _space; }
 	public long AllowedSpace { get => _allowed; }
 }
