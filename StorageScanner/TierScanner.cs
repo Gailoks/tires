@@ -90,19 +90,21 @@ public class TierScanner : ITierScanner
         int gid = (int)st.st_gid;
         int mode = (int)st.st_mode & 0xFFF; // обычные права rwxrwxrwx
 
-        var pathInfo = new FileEntryPathInfo(path, uid, gid, mode);
 
         if (_files.TryGetValue(inode, out var existing))
         {
-            existing.Paths.Add(pathInfo);
+            existing.Paths.Add(path);
             return;
         }
 
         var entry = new FileEntry(
-            Paths: new List<FileEntryPathInfo> { pathInfo },
+            Paths: new List<string> { path },
             Inode: inode,
             Size: size,
-            TierIndex: _tierIndex
+            TierIndex: _tierIndex,
+			OwnerUid: uid,
+			GroupGid: gid,
+			Mode: mode
         );
 
         _files[inode] = entry;
