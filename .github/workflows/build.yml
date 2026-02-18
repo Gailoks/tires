@@ -118,8 +118,8 @@ jobs:
     - name: Create .deb package
       run: |
         VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for Debian (replace invalid chars)
-        DEB_VERSION=$(echo "$VERSION" | sed 's/[^a-zA-Z0-9.+:~_-]/_/g')
+        # Sanitize version for Debian (replace - and other invalid chars)
+        DEB_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.+:~_]/_/g')
         DEB_DIR="deb-build/tires_${DEB_VERSION}-1_amd64"
 
         mkdir -p "$DEB_DIR/DEBIAN"
@@ -194,8 +194,8 @@ jobs:
     - name: Create .rpm package
       run: |
         VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for RPM (replace invalid chars)
-        RPM_VERSION=$(echo "$VERSION" | sed 's/[^a-zA-Z0-9.~_-]/_/g')
+        # Sanitize version for RPM (replace all invalid chars including -)
+        RPM_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.~_+]/_/g')
         RPM_DIR="rpm-build"
 
         mkdir -p "$RPM_DIR/SPECS"

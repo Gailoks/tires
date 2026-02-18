@@ -28,8 +28,9 @@ jobs:
       with:
         dotnet-version: 8.0.x
     - name: Run All Tests
-      run: ./Tests/tires-test-runner.sh
+      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size
       shell: bash
+      # Note: multi-tier test excluded (requires sudo for loop devices)
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
