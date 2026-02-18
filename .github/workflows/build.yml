@@ -44,8 +44,8 @@ jobs:
       run: dotnet build --no-restore -c Release
     
     - name: Test
-      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size
-      # Note: multi-tier test requires sudo for loop devices, run separately if needed
+      run: sudo ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size bigfiles capacity-limit
+      # Note: multi-tier test excluded (has issues with multiple loop devices in CI)
     
     - name: Publish Native AOT
       run: |
@@ -118,8 +118,9 @@ jobs:
     - name: Create .deb package
       run: |
         VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for Debian (replace - and other invalid chars)
-        DEB_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.+:~_]/_/g')
+        # Sanitize version for Debian: replace - with +, remove invalid chars
+        # Debian allows: digits, letters, dots, hyphens, tildes, plus, colons
+        DEB_VERSION=$(echo "$VERSION" | tr '-' '+' | sed 's/[^a-zA-Z0-9.:+~]/_/g')
         DEB_DIR="deb-build/tires_${DEB_VERSION}-1_amd64"
 
         mkdir -p "$DEB_DIR/DEBIAN"
@@ -217,11 +218,12 @@ jobs:
         URL: https://github.com/gailoks/tires
         Source0: %{name}-%{version}.tar.gz
         BuildArch: x86_64
-        BuildRequires: systemd-units
 
         %description
         Tires is a tiered storage manager that automatically moves files
         between storage tiers based on configurable rules.
+        
+        Requires: systemd (for timer service)
 
         %prep
         %setup -q
