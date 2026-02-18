@@ -8,6 +8,7 @@ public class Tier
 	private long _free;
 	private readonly long _space;
 	private readonly long _allowed;
+	private readonly long _capacity;
 
 	public Tier(TierConfig config)
 	{
@@ -15,6 +16,7 @@ public class Tier
 		var drive = new DriveInfo(Path.GetFullPath(_path)!);
 		_free = drive.AvailableFreeSpace;
 		_space = drive.TotalSize;
+		_capacity = _space;
 		_allowed = _space * Target / 100;
 		var used = _space - _free;
 		_free = _allowed - used;
@@ -22,6 +24,7 @@ public class Tier
 
 	public string _path => _config.Path;
 	public int Target => _config.Target;
+	public long Capacity => _capacity;
 
 	public long Free { get => _free; set => _free = value; }
 	public long Space { get => _space; }

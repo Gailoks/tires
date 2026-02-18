@@ -1,0 +1,18 @@
+{
+    "description": "Базовый тест перемещения файлов из cold в hot",
+    "timeout": 30,
+    "setup": {
+        "hot_files": [],
+        "cold_files": [
+            {"path": "file1.test", "size_kb": 10},
+            {"path": "file2.test", "size_kb": 20},
+            {"path": "file3.test", "size_kb": 15}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": ["file1.test", "file2.test", "file3.test"],
+        "cold_should_have": [],
+        "hot_file_count": 3,
+        "cold_file_count": 0
+    }
+}

@@ -7,4 +7,5 @@ public class Configuration
 	public required int IterationLimit {get; set; }
 	public LogLevel LogLevel { get; set; } = LogLevel.Information;
 	public string TemporaryPath {get; set; } = "tmp";
+    public List<FolderPlanConfig>? FolderRules { get; set; }
 }

@@ -1,0 +1,20 @@
+{
+    "description": "Тест исключения файлов по размеру (MaxSize: 15KB)",
+    "timeout": 30,
+    "setup": {
+        "dontmove_max_size": 15360,
+        "cold_files": [
+            {"path": "large1.bin", "size_kb": 20, "should_move": false},
+            {"path": "large2.bin", "size_kb": 30, "should_move": false},
+            {"path": "small1.bin", "size_kb": 5, "should_move": true},
+            {"path": "small2.bin", "size_kb": 10, "should_move": true},
+            {"path": "medium.bin", "size_kb": 15, "should_move": true}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": ["small1.bin", "small2.bin", "medium.bin"],
+        "cold_should_have": ["large1.bin", "large2.bin"],
+        "hot_file_count": 3,
+        "cold_file_count": 2
+    }
+}

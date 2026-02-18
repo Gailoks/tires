@@ -5,6 +5,19 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- Version Info -->
+    <Version>1.0.0</Version>
+    <Authors>Tires Contributors</Authors>
+    <Description>Tiered Storage Manager for mergerfs</Description>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(PublishAot)' == 'true'">
+    <PublishAot>true</PublishAot>
+    <PublishTrimmed>true</PublishTrimmed>
+    <TrimMode>partial</TrimMode>
+    <InvariantGlobalization>true</InvariantGlobalization>
+    <StripSymbols>true</StripSymbols>
   </PropertyGroup>
 
   <ItemGroup>

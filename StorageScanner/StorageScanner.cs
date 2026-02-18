@@ -49,7 +49,7 @@ public class StorageScanner : IStorageScanner
 		var all = results.SelectMany(x => x).ToList();
 		_logger.LogInformation("Total files found: {FileCount}", all.Count);
 		for (int i = 0; i < _tiers.Count; i++)
-			_logger.LogDebug("Real size of tier: {Tier}\n size: {Size}", i, Sizes[i]);
+			_logger.LogDebug("Tier {TierIndex} size: {Size} bytes", i, Sizes[i]);
 
 
 		return all;

@@ -1,0 +1,31 @@
+{
+    "description": "Тест TimeRule - файлы сортируются по времени модификации",
+    "timeout": 30,
+    "storage_config": {
+        "FolderRules": [
+            {
+                "PathPrefix": "documents",
+                "Priority": 10,
+                "RuleType": "Time",
+                "TimeType": "Modify",
+                "Reverse": false
+            }
+        ]
+    },
+    "setup": {
+        "hot_files": [],
+        "cold_files": [
+            {"path": "documents/old.txt", "size_kb": 10, "mtime_offset_days": -5},
+            {"path": "documents/new.txt", "size_kb": 10, "mtime_offset_days": 0},
+            {"path": "documents/middle.txt", "size_kb": 10, "mtime_offset_days": -2}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": [
+            "documents/old.txt",
+            "documents/new.txt",
+            "documents/middle.txt"
+        ],
+        "cold_file_count": 0
+    }
+}

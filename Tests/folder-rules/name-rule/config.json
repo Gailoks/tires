@@ -1,0 +1,33 @@
+{
+    "description": "Тест NameRule - файлы с определённым паттерном в имени получают приоритет",
+    "timeout": 30,
+    "storage_config": {
+        "FolderRules": [
+            {
+                "PathPrefix": "media",
+                "Priority": 10,
+                "RuleType": "Name",
+                "Pattern": ".mp4",
+                "Reverse": false
+            }
+        ]
+    },
+    "setup": {
+        "hot_files": [],
+        "cold_files": [
+            {"path": "media/video1.mp4", "size_kb": 50},
+            {"path": "media/document.pdf", "size_kb": 100},
+            {"path": "media/video2.mp4", "size_kb": 30},
+            {"path": "media/archive.zip", "size_kb": 80}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": [
+            "media/video1.mp4",
+            "media/document.pdf",
+            "media/video2.mp4",
+            "media/archive.zip"
+        ],
+        "cold_file_count": 0
+    }
+}

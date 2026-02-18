@@ -51,7 +51,7 @@ public class TierMover : ITierMover
 
 			if (file.Paths.Count > 0)
 			{
-				Syscall.chmod(tmpFile, (FilePermissions)file.Mode);
+				Syscall.chmod(tmpFile, file.Mode);
 				Syscall.chown(tmpFile, file.OwnerUid, file.GroupGid);
 			}
 
@@ -73,8 +73,10 @@ public class TierMover : ITierMover
 			dst.Free -= file.Size;
 
 			_logger.LogInformation(
-				"Moved files: {Files}\n inode: {Inode}\n mode: {Mode}\n owner: {Owner}\n group: {Group}\n from {Src} to {Dst}",
-				string.Join(", ", file.Paths), file.Inode,file.Mode,file.OwnerUid, file.GroupGid, src._path, dst._path);
+				"Moved {FileCount} files (inode: {Inode}) from Tier {SourceTier} to Tier {TargetTier}",
+				file.Paths.Count, file.Inode, sourceTier, targetTier);
+			_logger.LogDebug("  Paths: {Paths}", string.Join(", ", file.Paths));
+			_logger.LogDebug("  Mode: {Mode}, Owner: {Owner}, Group: {Group}", file.Mode, file.OwnerUid, file.GroupGid);
 
 			return true;
 		}
@@ -82,8 +84,9 @@ public class TierMover : ITierMover
 		{
 			_logger.LogWarning(
 				ex,
-				"Failed to move files: {Files}\n inode: {Inode}\n mode: {Mode}\n owner: {Owner}\n group: {Group}\n from {Src} to {Dst}",
-				string.Join(", ", file.Paths), file.Inode,file.Mode,file.OwnerUid, file.GroupGid, src._path, dst._path);
+				"Failed to move {FileCount} files (inode: {Inode}) from Tier {SourceTier} to Tier {TargetTier}",
+				file.Paths.Count, file.Inode, sourceTier, targetTier);
+			_logger.LogDebug("  Paths: {Paths}", string.Join(", ", file.Paths));
 			return false;
 		}
 	}
@@ -92,9 +95,10 @@ public class TierMover : ITierMover
 
 	public void ApplyPlan(List<FileEntry> fileEntries, List<int> boundaries)
 	{
-		var files = fileEntries;
-		_logger.LogInformation("Total files to move: {Count}", files.Count);
+		_logger.LogInformation("Starting file move operation");
+		_logger.LogInformation("Total files to process: {Count}", fileEntries.Count);
 
+		var files = fileEntries;
 		int totalFiles = files.Count;
 
 		int[] targetTier = new int[totalFiles];
@@ -136,7 +140,9 @@ public class TierMover : ITierMover
 			iterations++;
 		}
 
-		_logger.LogInformation("Moving completed after {Iterations} iterations", iterations);
+		_logger.LogInformation("File move operation completed after {Iterations} iterations", iterations);
+		if (iterations >= _iterationLimit)
+			_logger.LogWarning("Iteration limit ({Limit}) reached, some files may not have been moved", _iterationLimit);
 	}
 
 }

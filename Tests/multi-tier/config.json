@@ -1,0 +1,23 @@
+{
+    "description": "Тест распределения файлов по 3 уровням (hot/warm/cold) с ограничениями по месту",
+    "timeout": 60,
+    "setup": {
+        "tiers": 3,
+        "hot_capacity_mb": 2,
+        "warm_capacity_mb": 4,
+        "cold_capacity_mb": 10,
+        "files": [
+            {"path": "small1.bin", "size_kb": 50, "expected_tier": "hot"},
+            {"path": "small2.bin", "size_kb": 100, "expected_tier": "hot"},
+            {"path": "medium1.bin", "size_kb": 500, "expected_tier": "warm"},
+            {"path": "medium2.bin", "size_kb": 600, "expected_tier": "warm"},
+            {"path": "large1.bin", "size_kb": 1500, "expected_tier": "cold"},
+            {"path": "large2.bin", "size_kb": 2000, "expected_tier": "cold"}
+        ]
+    },
+    "assertions": {
+        "hot_file_count": 2,
+        "warm_file_count": 2,
+        "cold_file_count": 2
+    }
+}

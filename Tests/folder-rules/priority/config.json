@@ -1,0 +1,39 @@
+{
+    "description": "Тест приоритета folder rules - файлы из папки с высоким приоритетом обрабатываются первыми",
+    "timeout": 30,
+    "storage_config": {
+        "FolderRules": [
+            {
+                "PathPrefix": "priority",
+                "Priority": 10,
+                "RuleType": "Size",
+                "Reverse": true
+            },
+            {
+                "PathPrefix": "normal",
+                "Priority": 5,
+                "RuleType": "Size",
+                "Reverse": false
+            }
+        ]
+    },
+    "setup": {
+        "hot_files": [],
+        "cold_files": [
+            {"path": "priority/small.txt", "size_kb": 10},
+            {"path": "priority/large.txt", "size_kb": 100},
+            {"path": "normal/small.txt", "size_kb": 10},
+            {"path": "normal/large.txt", "size_kb": 100}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": [
+            "priority/large.txt",
+            "priority/small.txt",
+            "normal/large.txt",
+            "normal/small.txt"
+        ],
+        "cold_file_count": 0,
+        "order_matters": true
+    }
+}

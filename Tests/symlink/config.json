@@ -1,0 +1,18 @@
+{
+    "description": "Тест сохранения символьных ссылок при перемещении",
+    "timeout": 30,
+    "setup": {
+        "hot_files": [],
+        "cold_files": [
+            {"path": "dirA/dirB/dirC/target.txt", "size_kb": 1, "content": "target content"}
+        ],
+        "symlinks": [
+            {"path": "dirA/dirB/dirC/loop_link", "target": "../../../dirA/"}
+        ]
+    },
+    "assertions": {
+        "hot_file_count": 2,
+        "cold_file_count": 0,
+        "preserve_symlinks": true
+    }
+}

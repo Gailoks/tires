@@ -1,0 +1,19 @@
+{
+    "description": "Тест исключения файлов по паттерну имени (.critical)",
+    "timeout": 30,
+    "setup": {
+        "dontmove_pattern": ".critical",
+        "cold_files": [
+            {"path": "important.critical.txt", "size_kb": 10, "should_move": false},
+            {"path": "backup.critical.dat", "size_kb": 15, "should_move": false},
+            {"path": "normal1.txt", "size_kb": 20, "should_move": true},
+            {"path": "normal2.txt", "size_kb": 25, "should_move": true}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": ["normal1.txt", "normal2.txt"],
+        "cold_should_have": ["important.critical.txt", "backup.critical.dat"],
+        "hot_file_count": 2,
+        "cold_file_count": 2
+    }
+}

@@ -1,0 +1,31 @@
+{
+    "description": "Тест сохранения жестких ссылок при перемещении",
+    "timeout": 30,
+    "setup": {
+        "hot_files": [
+            {"path": "file_hot_1.txt", "size_kb": 1, "content": "hot1"},
+            {"path": "file_hot_2.txt", "size_kb": 1, "content": "hot2"},
+            {"path": "file_hot_3.txt", "size_kb": 1, "content": "hot3"}
+        ],
+        "cold_files": [
+            {"path": "file_cold_1.txt", "size_kb": 1, "content": "cold1"},
+            {"path": "file_cold_2.txt", "size_kb": 1, "content": "cold2"},
+            {"path": "file_cold_3.txt", "size_kb": 1, "content": "cold3"}
+        ],
+        "hot_hardlinks": [
+            {"link": "hardlink_hot_1.txt", "target": "file_hot_1.txt"},
+            {"link": "hardlink_hot_2.txt", "target": "file_hot_2.txt"},
+            {"link": "hardlink_hot_3.txt", "target": "file_hot_3.txt"}
+        ],
+        "cold_hardlinks": [
+            {"link": "hardlink_cold_1.txt", "target": "file_cold_1.txt"},
+            {"link": "hardlink_cold_2.txt", "target": "file_cold_2.txt"},
+            {"link": "hardlink_cold_3.txt", "target": "file_cold_3.txt"}
+        ]
+    },
+    "assertions": {
+        "hot_file_count": 9,
+        "cold_file_count": 0,
+        "preserve_hardlinks": true
+    }
+}

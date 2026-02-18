@@ -11,5 +11,25 @@
 			"target": 100,
 			"path": "/mnt/cold"
 		}
+	],
+	"FolderRules": [
+		{
+			"PathPrefix": "videos",
+			"Priority": 10,
+			"RuleType": "Size",
+			"Reverse": true
+		},
+		{
+			"PathPrefix": "documents",
+			"Priority": 5,
+			"RuleType": "Time",
+			"TimeType": "Modify"
+		},
+		{
+			"PathPrefix": "archives",
+			"Priority": 3,
+			"RuleType": "Name",
+			"Pattern": ".zip"
+		}
 	]
 }

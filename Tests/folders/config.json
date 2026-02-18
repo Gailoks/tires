@@ -1,0 +1,21 @@
+{
+    "description": "Тест перемещения файлов из вложенных каталогов с сохранением структуры",
+    "timeout": 30,
+    "setup": {
+        "hot_files": [],
+        "cold_files": [
+            {"path": "level1_1/level2_1/level3_1/file_1.txt", "size_kb": 5, "content": "data 1"},
+            {"path": "level1_2/level2_2/level3_2/file_2.txt", "size_kb": 5, "content": "data 2"},
+            {"path": "level1_3/level2_3/level3_3/file_3.txt", "size_kb": 5, "content": "data 3"}
+        ]
+    },
+    "assertions": {
+        "hot_should_have": [
+            "level1_1/level2_1/level3_1/file_1.txt",
+            "level1_2/level2_2/level3_2/file_2.txt",
+            "level1_3/level2_3/level3_3/file_3.txt"
+        ],
+        "cold_should_have": [],
+        "preserve_structure": true
+    }
+}

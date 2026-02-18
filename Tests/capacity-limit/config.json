@@ -1,0 +1,25 @@
+{
+    "description": "Тест с виртуальными дисками и чёткими границами места",
+    "timeout": 60,
+    "requires_sudo": true,
+    "virtual_disks": {
+        "hot_mb": 2,
+        "cold_mb": 8
+    },
+    "setup": {
+        "cold_files": [
+            {"path": "small1.bin", "size_kb": 100},
+            {"path": "small2.bin", "size_kb": 150},
+            {"path": "small3.bin", "size_kb": 200},
+            {"path": "large1.bin", "size_kb": 400},
+            {"path": "large2.bin", "size_kb": 500},
+            {"path": "large3.bin", "size_kb": 600},
+            {"path": "large4.bin", "size_kb": 700}
+        ]
+    },
+    "assertions": {
+        "description": "Малые файлы на hot, большие на cold (не хватило места)",
+        "min_small_on_hot": 2,
+        "min_large_on_cold": 3
+    }
+}
