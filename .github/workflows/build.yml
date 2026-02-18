@@ -44,7 +44,7 @@ jobs:
       run: dotnet build --no-restore -c Release
     
     - name: Test
-      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules ignore-rule
+      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size
     
     - name: Publish Native AOT
       run: |
