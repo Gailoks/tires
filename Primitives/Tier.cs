@@ -13,10 +13,23 @@ public class Tier
 	public Tier(TierConfig config)
 	{
 		_config = config;
-		var drive = new DriveInfo(Path.GetFullPath(_path)!);
-		_free = drive.AvailableFreeSpace;
-		_space = drive.TotalSize;
-		_capacity = _space;
+		
+		// Use mock capacity if provided (for testing without loop devices)
+		if (config.MockCapacity.HasValue)
+		{
+			_capacity = config.MockCapacity.Value;
+			_space = config.MockCapacity.Value;
+			_free = config.MockCapacity.Value; // Start with full free space
+		}
+		else
+		{
+			// Real disk detection
+			var drive = new DriveInfo(Path.GetFullPath(_path)!);
+			_free = drive.AvailableFreeSpace;
+			_space = drive.TotalSize;
+			_capacity = _space;
+		}
+		
 		_allowed = _space * Target / 100;
 		var used = _space - _free;
 		_free = _allowed - used;

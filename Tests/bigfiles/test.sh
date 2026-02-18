@@ -9,51 +9,41 @@ source "$TESTS_DIR/common.sh"
 
 init_test_env "$TEST_NAME"
 
-# Создаём виртуальные диски
-# Hot: 4MB - поместятся малые файлы + некоторые большие
-# Cold: 8MB - все файлы помещаются
-echo "📀 Создание виртуальных дисков..."
-MNT_HOT=$(create_virtual_disk 4 "hot")
-MNT_COLD=$(create_virtual_disk 8 "cold")
+HOT="$TEST_ROOT/hot"
+COLD="$TEST_ROOT/cold"
 
-echo "💾 Виртуальные диски созданы:"
-echo "HOT: $MNT_HOT (4MB)"
-echo "COLD: $MNT_COLD (8MB)"
+mkdir -p "$HOT" "$COLD"
 
-# Проверяем доступное место
-hot_free=$(df -B1 "$MNT_HOT" | tail -1 | awk '{print $4}') || true
-cold_free=$(df -B1 "$MNT_COLD" | tail -1 | awk '{print $4}') || true
-echo "HOT свободно: $((hot_free / 1024)) KB"
-echo "COLD свободно: $((cold_free / 1024)) KB"
+# Mock capacity: Hot=4MB, Cold=8MB (в байтах)
+HOT_CAPACITY=$((4 * 1024 * 1024))
+COLD_CAPACITY=$((8 * 1024 * 1024))
 
-# Настраиваем storage.json
 cat > "$TEST_ROOT/storage.json" << EOF
 {
     "IterationLimit": 20,
     "LogLevel": "Warning",
     "TemporaryPath": "tmp",
     "Tiers": [
-        {"target": 100, "path": "$MNT_HOT"},
-        {"target": 100, "path": "$MNT_COLD"}
+        {"target": 100, "path": "$HOT", "MockCapacity": $HOT_CAPACITY},
+        {"target": 100, "path": "$COLD", "MockCapacity": $COLD_CAPACITY}
     ]
 }
 EOF
 
-echo "📝 Создание тестовых файлов на COLD..."
-
+echo "📝 Создание тестовых файлов..."
 # Все файлы на cold - приложение само решит куда их переместить
 # SizeRule сортирует по возрастанию размера
-create_file "$MNT_COLD/small1.bin" 100
-create_file "$MNT_COLD/small2.bin" 150
-create_file "$MNT_COLD/small3.bin" 200
-create_file "$MNT_COLD/large1.bin" 400
-create_file "$MNT_COLD/large2.bin" 500
-create_file "$MNT_COLD/large3.bin" 600
-create_file "$MNT_COLD/large4.bin" 700
+create_file "$COLD/small1.bin" 100
+create_file "$COLD/small2.bin" 150
+create_file "$COLD/small3.bin" 200
+create_file "$COLD/large1.bin" 400
+create_file "$COLD/large2.bin" 500
+create_file "$COLD/large3.bin" 600
+create_file "$COLD/large4.bin" 700
 
 echo "📊 Файлы созданы:"
 echo "Всего файлов: 7 (общий размер: 2650KB)"
-ls -lh "$MNT_COLD"/*.bin 2>/dev/null || true
+find "$COLD" -name "*.bin" -exec ls -lh {} \;
 
 if ! run_app "$TEST_ROOT/storage.json"; then
     test_result false "$TEST_NAME"
@@ -69,16 +59,16 @@ if [[ "$total_files" -ne 7 ]]; then
     success=false
 fi
 
-# Считаем файлы на каждом диске
-hot_count=$(find "$MNT_HOT" -type f -name "*.bin" 2>/dev/null | wc -l) || true
-cold_count=$(find "$MNT_COLD" -type f -name "*.bin" 2>/dev/null | wc -l) || true
+# Считаем файлы на каждом tier
+hot_count=$(find "$HOT" -type f -name "*.bin" 2>/dev/null | wc -l) || true
+cold_count=$(find "$COLD" -type f -name "*.bin" 2>/dev/null | wc -l) || true
 
 echo "Распределение: hot=$hot_count, cold=$cold_count"
 
 # Малые файлы (100, 150, 200 KB) должны быть на hot т.к. они первые по размеру
 small_on_hot=0
 for f in small1.bin small2.bin small3.bin; do
-    if [[ -f "$MNT_HOT/$f" ]]; then
+    if [[ -f "$HOT/$f" ]]; then
         echo "✅ $f на hot (корректно)"
         small_on_hot=$((small_on_hot + 1))
     fi

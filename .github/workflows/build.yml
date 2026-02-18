@@ -44,8 +44,8 @@ jobs:
       run: dotnet build --no-restore -c Release
     
     - name: Test
-      run: sudo ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size bigfiles capacity-limit
-      # Note: multi-tier test excluded (has issues with multiple loop devices in CI)
+      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size bigfiles capacity-limit
+      # All tests now run without sudo (using MockCapacity for space-limited tests)
     
     - name: Publish Native AOT
       run: |
@@ -195,7 +195,7 @@ jobs:
     - name: Create .rpm package
       run: |
         VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for RPM (replace all invalid chars including -)
+        # Sanitize version for RPM
         RPM_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.~_+]/_/g')
         RPM_DIR="rpm-build"
 
@@ -205,8 +205,8 @@ jobs:
         mkdir -p "$RPM_DIR/RPMS"
         mkdir -p "$RPM_DIR/SRPMS"
 
-        # Create source tarball
-        tar -czf "$RPM_DIR/SOURCES/tires-$RPM_VERSION.tar.gz" -C ./rpm-package .
+        # Create source tarball with correct name (no underscores in dir name)
+        tar -czf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}.tar.gz" -C ./rpm-package .
 
         # Create spec file
         cat > "$RPM_DIR/SPECS/tires.spec" << EOF
@@ -226,7 +226,7 @@ jobs:
         Requires: systemd (for timer service)
 
         %prep
-        %setup -q
+        %setup -q -n tires-${RPM_VERSION}
 
         %install
         mkdir -p %{buildroot}/usr/bin

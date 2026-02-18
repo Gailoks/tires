@@ -28,9 +28,9 @@ jobs:
       with:
         dotnet-version: 8.0.x
     - name: Run All Tests
-      run: sudo ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size bigfiles capacity-limit
+      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size bigfiles capacity-limit
       shell: bash
-      # Note: multi-tier excluded (multiple loop devices issue in CI)
+      # All tests now run without sudo (using MockCapacity for space-limited tests)
     
     - name: Upload test results
       uses: actions/upload-artifact@v4
