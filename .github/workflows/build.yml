@@ -114,7 +114,15 @@ jobs:
       with:
         name: tires-linux-x64
         path: ./deb-build/tires
-    
+
+    - name: Copy additional files
+      run: |
+        cp README.md ./deb-build/tires/ 2>/dev/null || true
+        cp storage.json ./deb-build/tires/ 2>/dev/null || true
+        mkdir -p ./deb-build/tires/systemd
+        cp packaging/systemd/*.service ./deb-build/tires/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.timer ./deb-build/tires/systemd/ 2>/dev/null || true
+
     - name: Create .deb package
       run: |
         VERSION=${{ needs.build.outputs.version }}
@@ -191,7 +199,15 @@ jobs:
       with:
         name: tires-linux-x64
         path: ./rpm-package
-    
+
+    - name: Copy additional files
+      run: |
+        cp README.md ./rpm-package/ 2>/dev/null || true
+        cp storage.json ./rpm-package/ 2>/dev/null || true
+        mkdir -p ./rpm-package/systemd
+        cp packaging/systemd/*.service ./rpm-package/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.timer ./rpm-package/systemd/ 2>/dev/null || true
+
     - name: Create .rpm package
       run: |
         VERSION=${{ needs.build.outputs.version }}
