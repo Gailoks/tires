@@ -427,16 +427,16 @@ tires --version 2>/dev/null || echo "Tires installed"
 
 ### Available Tests
 
-| Test | Description | Requires sudo |
-|------|-------------|---------------|
-| `default` | Basic file movement | No |
-| `folders` | Nested directories | No |
-| `hardlinks` | Hardlink preservation | No |
-| `symlink` | Symlink preservation | No |
-| `folder-rules/*` | Rule priority tests | No |
-| `ignore-rule/*` | Folder exclusion tests | No |
-| `multi-tier` | 3+ tier distribution | Yes |
-| `bigfiles` | Virtual disk tests | Yes |
+| Test | Description |
+|------|-------------|
+| `default` | Basic file movement |
+| `folders` | Nested directories |
+| `hardlinks` | Hardlink preservation |
+| `symlink` | Symlink preservation |
+| `folder-rules/*` | Rule priority tests | 
+| `ignore-rule/*` | Folder exclusion tests |
+| `multi-tier` | 3+ tier distribution | 
+| `bigfiles` | Virtual disk tests |
 
 ---
 
@@ -980,16 +980,16 @@ tires --version 2>/dev/null || echo "Tires установлен"
 
 ### Доступные тесты
 
-| Тест | Описание | Требуется sudo |
-|------|----------|----------------|
-| `default` | Базовое перемещение файлов | Нет |
-| `folders` | Вложенные директории | Нет |
-| `hardlinks` | Сохранение жёстких ссылок | Нет |
-| `symlink` | Сохранение символьных ссылок | Нет |
-| `folder-rules/*` | Тесты приоритетов правил | Нет |
-| `ignore-rule/*` | Тесты исключения папок | Нет |
-| `multi-tier` | Распределение по 3+ уровням | Да |
-| `bigfiles` | Тесты виртуальных дисков | Да |
+| Тест | Описание |
+|------|----------|
+| `default` | Базовое перемещение файлов |
+| `folders` | Вложенные директории |
+| `hardlinks` | Сохранение жёстких ссылок | 
+| `symlink` | Сохранение символьных ссылок |
+| `folder-rules/*` | Тесты приоритетов правил | 
+| `ignore-rule/*` | Тесты исключения папок | 
+| `multi-tier` | Распределение по 3+ уровням | 
+| `bigfiles` | Тесты виртуальных дисков |
 
 ---
 
