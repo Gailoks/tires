@@ -205,8 +205,12 @@ jobs:
         mkdir -p "$RPM_DIR/RPMS"
         mkdir -p "$RPM_DIR/SRPMS"
 
-        # Create source tarball with correct name (no underscores in dir name)
-        tar -czf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}.tar.gz" -C ./rpm-package .
+        # Create source tarball with proper directory structure
+        # RPM expects the extracted dir to match the version
+        mkdir -p "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
+        cp -r ./rpm-package/* "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/"
+        tar -czf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}.tar.gz" -C "$RPM_DIR/SOURCES" "tires-${RPM_VERSION}"
+        rm -rf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
 
         # Create spec file
         cat > "$RPM_DIR/SPECS/tires.spec" << EOF
@@ -226,7 +230,7 @@ jobs:
         Requires: systemd (for timer service)
 
         %prep
-        %setup -q -n tires-${RPM_VERSION}
+        %setup -q
 
         %install
         mkdir -p %{buildroot}/usr/bin
