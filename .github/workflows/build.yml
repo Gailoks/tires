@@ -44,8 +44,8 @@ jobs:
       run: dotnet build --no-restore -c Release
     
     - name: Test
-      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size bigfiles capacity-limit
-      # All tests now run without sudo (using MockCapacity for space-limited tests)
+      run: ./Tests/tires-test-runner.sh
+      # All 12 tests run without sudo (using MockCapacity for space-limited tests)
     
     - name: Publish Native AOT
       run: |

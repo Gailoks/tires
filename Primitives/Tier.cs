@@ -19,7 +19,10 @@ public class Tier
 		{
 			_capacity = config.MockCapacity.Value;
 			_space = config.MockCapacity.Value;
-			_free = config.MockCapacity.Value; // Start with full free space
+			// For mock mode, start with full capacity available
+			// The actual free space will be calculated based on target%
+			_allowed = _capacity * Target / 100;
+			_free = _allowed; // All allowed space is initially free
 		}
 		else
 		{
@@ -28,11 +31,10 @@ public class Tier
 			_free = drive.AvailableFreeSpace;
 			_space = drive.TotalSize;
 			_capacity = _space;
+			_allowed = _space * Target / 100;
+			var used = _space - _free;
+			_free = _allowed - used;
 		}
-		
-		_allowed = _space * Target / 100;
-		var used = _space - _free;
-		_free = _allowed - used;
 	}
 
 	public string _path => _config.Path;

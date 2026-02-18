@@ -10,45 +10,36 @@ source "$TESTS_DIR/common.sh"
 # Инициализация
 init_test_env "$TEST_NAME"
 
-# Создаём виртуальные диски с ограничениями
-# HOT: 1MB (target 100%) - только маленькие файлы
-# WARM: 2MB (target 100%) - средние файлы
-# COLD: 5MB (target 100%) - большие файлы
-echo "📀 Создание виртуальных дисков..."
-HOT_MNT=$(create_virtual_disk 1 "hot")
-WARM_MNT=$(create_virtual_disk 2 "warm")
-COLD_MNT=$(create_virtual_disk 5 "cold")
+HOT="$TEST_ROOT/hot"
+WARM="$TEST_ROOT/warm"
+COLD="$TEST_ROOT/cold"
 
-echo "💾 Виртуальные диски созданы:"
-echo "HOT: $HOT_MNT (~1MB)"
-echo "WARM: $WARM_MNT (~2MB)"
-echo "COLD: $COLD_MNT (~5MB)"
+mkdir -p "$HOT" "$WARM" "$COLD"
 
-HOT="$HOT_MNT"
-WARM="$WARM_MNT"
-COLD="$COLD_MNT"
+# Mock capacity: Hot=1MB, Warm=2MB, Cold=5MB
+HOT_CAPACITY=$((1 * 1024 * 1024))
+WARM_CAPACITY=$((2 * 1024 * 1024))
+COLD_CAPACITY=$((5 * 1024 * 1024))
 
-# Настройка storage.json - все target 100% чтобы использовать всё доступное место
 cat > "$TEST_ROOT/storage.json" << EOF
 {
     "IterationLimit": 20,
     "LogLevel": "Warning",
     "TemporaryPath": "tmp",
     "Tiers": [
-        {"target": 100, "path": "$HOT"},
-        {"target": 100, "path": "$WARM"},
-        {"target": 100, "path": "$COLD"}
+        {"target": 100, "path": "$HOT", "MockCapacity": $HOT_CAPACITY},
+        {"target": 100, "path": "$WARM", "MockCapacity": $WARM_CAPACITY},
+        {"target": 100, "path": "$COLD", "MockCapacity": $COLD_CAPACITY}
     ]
 }
 EOF
 
 echo "📝 Создание тестовых файлов..."
-# Создаём файлы на COLD диске
-# Маленькие (должны попасть на hot)
+# Маленькие (должны попасть на hot ~250KB суммарно)
 create_file "$COLD/small1.bin" 100      # 100KB
 create_file "$COLD/small2.bin" 150      # 150KB
 
-# Средние (должны попасть на warm)
+# Средние (должны попасть на warm ~900KB суммарно)
 create_file "$COLD/medium1.bin" 400     # 400KB
 create_file "$COLD/medium2.bin" 500     # 500KB
 
@@ -68,9 +59,7 @@ fi
 echo "🔍 Проверка результатов..."
 success=true
 
-# Проверяем что файлы распределились по уровням
-# Из-за ограничений по месту, файлы сортируются по размеру
-
+# Проверяем распределение по уровням
 hot_count=$(find "$HOT" -type f -name "*.bin" | wc -l)
 warm_count=$(find "$WARM" -type f -name "*.bin" | wc -l)
 cold_count=$(find "$COLD" -type f -name "*.bin" | wc -l)
@@ -86,7 +75,7 @@ fi
 # Проверяем что общее количество файлов сохранилось
 total=$((hot_count + warm_count + cold_count))
 if [ "$total" -ne 6 ]; then
-    echo "❌ Общее количество файлов должно быть 6"
+    echo "❌ Общее количество файлов должно быть 6, найдено: $total"
     success=false
 fi
 
@@ -97,6 +86,13 @@ small_total=$((small_on_hot + small_on_warm))
 
 if [ "$small_total" -ne 2 ]; then
     echo "❌ Маленькие файлы должны быть на hot или warm"
+    success=false
+fi
+
+# Проверяем что большие файлы в основном на cold
+large_on_cold=$(find "$COLD" -type f -name "large*.bin" | wc -l)
+if [ "$large_on_cold" -lt 1 ]; then
+    echo "❌ Хотя бы один большой файл должен остаться на cold"
     success=false
 fi
 

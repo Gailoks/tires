@@ -14,8 +14,9 @@ COLD="$TEST_ROOT/cold"
 
 mkdir -p "$HOT" "$COLD"
 
-# Mock capacity: Hot=3MB (строгое ограничение), Cold=10MB
-HOT_CAPACITY=$((3 * 1024 * 1024))
+# Mock capacity: Hot=2MB (поместятся только малые файлы ~450KB), Cold=10MB
+# 2MB = 2097152 bytes, малые файлы = 450KB, большие = 2200KB
+HOT_CAPACITY=$((2 * 1024 * 1024))
 COLD_CAPACITY=$((10 * 1024 * 1024))
 
 cat > "$TEST_ROOT/storage.json" << EOF
