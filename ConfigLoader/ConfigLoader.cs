@@ -18,7 +18,8 @@ public class ConfigLoader : IConfigLoader
             IterationLimit = root.GetProperty("IterationLimit").GetInt32(),
             LogLevel = ParseLogLevel(root.GetProperty("LogLevel").GetString() ?? "Information"),
             TemporaryPath = root.GetProperty("TemporaryPath").GetString() ?? "tmp",
-            RunInterval = root.TryGetProperty("RunInterval", out var ri) ? ri.GetString() ?? "hourly" : "hourly"
+            RunInterval = root.TryGetProperty("RunInterval", out var ri) ? ri.GetString() ?? "hourly" : "hourly",
+            ProcessPriority = root.TryGetProperty("ProcessPriority", out var pp) ? pp.GetInt32() : 10
         };
 
         // Parse Tiers
@@ -61,6 +62,7 @@ public class ConfigLoader : IConfigLoader
         Console.WriteLine("Log level from config: {0}", config.LogLevel);
         Console.WriteLine("Temporary path from config: {0}", config.TemporaryPath);
         Console.WriteLine("Run interval from config: {0}", config.RunInterval);
+        Console.WriteLine("Process priority from config: {0}", config.ProcessPriority);
 
         if (config.FolderRules != null)
         {

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Tires.Config;
 using Tires.Storage;
+using System.Diagnostics;
 
 var configPath = args.Length > 0 ? args[0] : "storage.json";
 var configLoader = new ConfigLoader();
@@ -25,6 +26,27 @@ var serviceProvider = new ServiceCollection()
     .BuildServiceProvider();
 
 var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
+
+// Set process priority
+try
+{
+    using var process = Process.GetCurrentProcess();
+    // Priority class mapping based on nice-like values (-20 to 19)
+    // Default: Idle - runs only when CPU is otherwise idle (best for background tasks)
+    process.PriorityClass = storageConfig.ProcessPriority switch
+    {
+        < 0 => ProcessPriorityClass.AboveNormal,   // High priority
+        0 => ProcessPriorityClass.Normal,          // Normal priority
+        1 => ProcessPriorityClass.BelowNormal,     // Low priority
+        _ => ProcessPriorityClass.Idle             // Idle (default, 2-19)
+    };
+    logger.LogInformation("Process priority set to: {Priority} (nice: {Nice})",
+        process.PriorityClass, storageConfig.ProcessPriority);
+}
+catch (Exception ex)
+{
+    logger.LogWarning(ex, "Failed to set process priority");
+}
 
 logger.LogInformation("=== Tires - Tiered Storage Manager ===");
 logger.LogInformation("Configuration loaded from: {ConfigPath}", configPath);

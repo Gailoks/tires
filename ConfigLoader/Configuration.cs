@@ -12,6 +12,7 @@ public class Configuration
         LogLevel = LogLevel.Information;
         TemporaryPath = "tmp";
         RunInterval = "hourly";
+        ProcessPriority = 2; // Idle by default (runs when CPU is idle)
     }
     
     public List<TierConfig> Tiers { get; set; }
@@ -26,4 +27,10 @@ public class Configuration
     /// or systemd calendar format (e.g., "*-*-* 02:00:00" for daily at 2 AM)
     /// </summary>
     public string RunInterval { get; set; }
+    
+    /// <summary>
+    /// Process priority for file operations.
+    /// Values: -20 (highest) to 19 (lowest), default: 2 (Idle - runs when CPU is idle)
+    /// </summary>
+    public int ProcessPriority { get; set; }
 }

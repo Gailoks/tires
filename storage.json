@@ -3,6 +3,7 @@
 	"LogLevel": "Debug",
 	"TemporaryPath": "tmp",
 	"RunInterval": "hourly",
+	"ProcessPriority": 2,
 	"Tiers": [
 		{
 			"target": 90,

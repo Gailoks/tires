@@ -97,6 +97,7 @@ sudo systemctl enable --now tires.timer
 | `LogLevel` | string | "Information" | Debug, Information, Warning, Error |
 | `TemporaryPath` | string | "tmp" | Temp folder during moves |
 | `RunInterval` | string | "hourly" | How often to run: `minutely`, `hourly`, `daily`, `weekly`, `monthly`, or systemd calendar format |
+| `ProcessPriority` | int | 2 | Process priority: -20 (highest) to 19 (lowest), default 2 (Idle) |
 | `Tiers` | array | required | Storage tier definitions |
 | `FolderRules` | array | null | Optional sorting/exclusion rules |
 
