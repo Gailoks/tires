@@ -78,7 +78,15 @@ jobs:
       with:
         name: tires-linux-x64
         path: ./package/tires
-    
+
+    - name: Copy additional files
+      run: |
+        cp README.md ./package/tires/ 2>/dev/null || true
+        cp storage.json ./package/tires/ 2>/dev/null || true
+        mkdir -p ./package/tires/systemd
+        cp packaging/systemd/*.service ./package/tires/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.timer ./package/tires/systemd/ 2>/dev/null || true
+
     - name: Create package
       run: |
         VERSION=${{ needs.build.outputs.version }}
@@ -218,8 +226,8 @@ jobs:
         cp README.md ./rpm-package/ 2>/dev/null || true
         cp storage.json ./rpm-package/ 2>/dev/null || true
         mkdir -p ./rpm-package/systemd
-        cp ./rpm-package/systemd/*.service ./rpm-package/systemd/ 2>/dev/null || true
-        cp ./rpm-package/systemd/*.timer ./rpm-package/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.service ./rpm-package/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.timer ./rpm-package/systemd/ 2>/dev/null || true
 
     - name: Create .rpm package
       run: |
