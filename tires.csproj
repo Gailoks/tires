@@ -14,10 +14,10 @@
 
   <PropertyGroup Condition="'$(PublishAot)' == 'true'">
     <PublishAot>true</PublishAot>
-    <PublishTrimmed>true</PublishTrimmed>
-    <TrimMode>partial</TrimMode>
     <InvariantGlobalization>true</InvariantGlobalization>
     <StripSymbols>true</StripSymbols>
+    <!-- Preserve metadata for JSON serialization -->
+    <IlcTrimMetadata>true</IlcTrimMetadata>
   </PropertyGroup>
 
   <ItemGroup>
