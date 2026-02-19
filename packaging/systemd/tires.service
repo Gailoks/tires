@@ -1,13 +1,11 @@
 [Unit]
 Description=Tires - Tiered Storage Manager
-Documentation=https://github.com/tires/tires/blob/main/README.md
+Documentation=https://github.com/gailoks/tires/blob/main/README.md
 After=local-fs.target
-Wants=local-fs.target
 
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/tires /etc/tires/storage.json
-WorkingDirectory=/var/lib/tires
 StandardOutput=journal
 StandardError=journal
 User=root
@@ -17,7 +15,6 @@ Group=root
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=read-only
-ReadWritePaths=/var/lib/tires
 PrivateTmp=true
 
 [Install]
