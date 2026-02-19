@@ -1,7 +1,8 @@
 {
 	"IterationLimit": 20,
 	"LogLevel": "Debug",
-	"TemporaryPath":"tmp",
+	"TemporaryPath": "tmp",
+	"RunInterval": "hourly",
 	"Tiers": [
 		{
 			"target": 90,

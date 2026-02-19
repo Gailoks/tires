@@ -11,6 +11,7 @@ public class Configuration
         IterationLimit = 20;
         LogLevel = LogLevel.Information;
         TemporaryPath = "tmp";
+        RunInterval = "hourly";
     }
     
     public List<TierConfig> Tiers { get; set; }
@@ -18,4 +19,11 @@ public class Configuration
     public LogLevel LogLevel { get; set; }
     public string TemporaryPath { get; set; }
     public List<FolderPlanConfig>? FolderRules { get; set; }
+    
+    /// <summary>
+    /// How often to run the storage optimization.
+    /// Supported values: "minutely", "hourly", "daily", "weekly", "monthly", 
+    /// or systemd calendar format (e.g., "*-*-* 02:00:00" for daily at 2 AM)
+    /// </summary>
+    public string RunInterval { get; set; }
 }

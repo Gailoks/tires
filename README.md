@@ -71,6 +71,7 @@ sudo systemctl enable --now tires.timer
     "IterationLimit": 20,
     "LogLevel": "Information",
     "TemporaryPath": "tmp",
+    "RunInterval": "hourly",
     "Tiers": [
         {
             "target": 90,
@@ -95,6 +96,7 @@ sudo systemctl enable --now tires.timer
 | `IterationLimit` | int | 20 | Max move iterations per run |
 | `LogLevel` | string | "Information" | Debug, Information, Warning, Error |
 | `TemporaryPath` | string | "tmp" | Temp folder during moves |
+| `RunInterval` | string | "hourly" | How often to run: `minutely`, `hourly`, `daily`, `weekly`, `monthly`, or systemd calendar format |
 | `Tiers` | array | required | Storage tier definitions |
 | `FolderRules` | array | null | Optional sorting/exclusion rules |
 
@@ -216,7 +218,31 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now tires.timer
 ```
 
-### Customize Schedule
+### Configure Run Interval
+
+Edit `/etc/tires/storage.json`:
+
+```json
+{
+    "RunInterval": "daily"
+}
+```
+
+Supported values:
+- `minutely` — Every minute
+- `hourly` — Every hour (default)
+- `daily` — Every day at midnight
+- `weekly` — Every Monday at midnight
+- `monthly` — 1st day of each month
+- Custom systemd calendar format (e.g., `*-*-* 02:00:00` for daily at 2 AM)
+
+Then apply the configuration:
+
+```bash
+sudo ./packaging/systemd/configure-timer.sh /etc/tires/storage.json
+```
+
+### Customize Schedule Manually
 
 Create `/etc/systemd/system/tires.timer.d/override.conf`:
 
