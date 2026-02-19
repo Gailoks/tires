@@ -23,16 +23,24 @@
 
 ### 1. Install
 
+**All packages include `libMono.Unix.so` — no need to install Mono separately!**
+
 ```bash
 # Debian/Ubuntu
 sudo dpkg -i tires_*.deb
+# libMono.Unix.so is installed to /usr/lib/
+# ldconfig is called automatically
 
 # Fedora/RHEL
 sudo rpm -ivh tires-*.rpm
+# libMono.Unix.so is installed to /usr/lib/
 
-# Any Linux
+# Any Linux (manual)
 tar -xzf tires-*-linux-x64.tar.gz
-sudo cp tires-*-linux-x64/tires /usr/local/bin/
+cd tires-*-linux-x64
+sudo cp tires /usr/local/bin/
+sudo cp libMono.Unix.so /usr/lib/
+sudo ldconfig
 ```
 
 ### 2. Configure
@@ -386,16 +394,24 @@ ISC License — See [LICENSE](LICENSE) for details.
 
 ### 1. Установка
 
+**Все пакеты включают `libMono.Unix.so` — не нужно устанавливать Mono отдельно!**
+
 ```bash
 # Debian/Ubuntu
 sudo dpkg -i tires_*.deb
+# libMono.Unix.so устанавливается в /usr/lib/
+# ldconfig вызывается автоматически
 
-# Fedora/RHEL  
+# Fedora/RHEL
 sudo rpm -ivh tires-*.rpm
+# libMono.Unix.so устанавливается в /usr/lib/
 
-# Любой Linux
+# Любой Linux (вручную)
 tar -xzf tires-*-linux-x64.tar.gz
-sudo cp tires-*-linux-x64/tires /usr/local/bin/
+cd tires-*-linux-x64
+sudo cp tires /usr/local/bin/
+sudo cp libMono.Unix.so /usr/lib/
+sudo ldconfig
 ```
 
 ### 2. Конфигурация

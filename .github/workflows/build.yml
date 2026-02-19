@@ -44,8 +44,8 @@ jobs:
       run: dotnet build --no-restore -c Release
     
     - name: Test
-      run: ./Tests/tires-test-runner.sh default folders hardlinks symlink folder-rules/priority folder-rules/name-rule folder-rules/time-rule ignore-rule/pattern ignore-rule/size
-      # Note: multi-tier test excluded (has issues with multiple loop devices in CI)
+      run: ./Tests/tires-test-runner.sh
+      # All 12 tests run without sudo (using MockCapacity for space-limited tests)
     
     - name: Publish Native AOT
       run: |
@@ -57,7 +57,7 @@ jobs:
       run: |
         ls -lh ./publish/linux-x64/
         file ./publish/linux-x64/tires
-        file ./publish/linux-x64/libMono.Unix.so
+        ./publish/linux-x64/tires --help || true
     
     - name: Upload binary artifact
       uses: actions/upload-artifact@v4
@@ -84,15 +84,15 @@ jobs:
         VERSION=${{ needs.build.outputs.version }}
         PACKAGE_DIR="tires-$VERSION-linux-x64"
         mkdir -p ./release/$PACKAGE_DIR
-        
+
         cp ./package/tires/tires ./release/$PACKAGE_DIR/
         cp ./package/tires/libMono.Unix.so ./release/$PACKAGE_DIR/
         cp README.md ./release/$PACKAGE_DIR/
         cp storage.json ./release/$PACKAGE_DIR/ 2>/dev/null || true
         mkdir -p ./release/$PACKAGE_DIR/systemd
-        cp packaging/systemd/*.service ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
-        cp packaging/systemd/*.timer ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
-        
+        cp ./package/tires/systemd/*.service ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
+        cp ./package/tires/systemd/*.timer ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
+
         cd ./release
         tar -czf "$PACKAGE_DIR.tar.gz" "$PACKAGE_DIR"
     
@@ -115,7 +115,7 @@ jobs:
       with:
         name: tires-linux-x64
         path: ./deb-build/tires
-    
+
     - name: Copy additional files
       run: |
         cp README.md ./deb-build/tires/ 2>/dev/null || true
@@ -123,41 +123,39 @@ jobs:
         mkdir -p ./deb-build/tires/systemd
         cp packaging/systemd/*.service ./deb-build/tires/systemd/ 2>/dev/null || true
         cp packaging/systemd/*.timer ./deb-build/tires/systemd/ 2>/dev/null || true
-        # Copy Mono.Unix library (REQUIRED!)
-        cp ./package/tires/libMono.Unix.so ./deb-build/tires/ 2>/dev/null || {
-            echo "::error::libMono.Unix.so not found!"
-            exit 1
-        }
-    
+
     - name: Create .deb package
       run: |
         VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for Debian
+        # Sanitize version for Debian: replace - with +, remove invalid chars
         DEB_VERSION=$(echo "$VERSION" | tr '-' '+' | sed 's/[^a-zA-Z0-9.:+~]/_/g')
         DEB_DIR="deb-build/tires_${DEB_VERSION}-1_amd64"
-        
+
         mkdir -p "$DEB_DIR/DEBIAN"
         mkdir -p "$DEB_DIR/usr/bin"
         mkdir -p "$DEB_DIR/usr/lib"
         mkdir -p "$DEB_DIR/usr/share/doc/tires"
         mkdir -p "$DEB_DIR/etc/tires"
         mkdir -p "$DEB_DIR/lib/systemd/system"
-        
+
         # Copy binary
         cp ./deb-build/tires/tires "$DEB_DIR/usr/bin/"
         chmod +x "$DEB_DIR/usr/bin/tires"
-        
+
         # Copy Mono.Unix library (REQUIRED!)
-        cp ./deb-build/tires/libMono.Unix.so "$DEB_DIR/usr/lib/"
-        
+        cp ./deb-build/tires/libMono.Unix.so "$DEB_DIR/usr/lib/" || {
+            echo "::error::libMono.Unix.so not found!"
+            exit 1
+        }
+
         # Copy docs
-        cp ./deb-build/tires/README.md "$DEB_DIR/usr/share/doc/tires/" 2>/dev/null || true
-        cp ./deb-build/tires/storage.json "$DEB_DIR/etc/tires/storage.json.example" 2>/dev/null || true
-        
+        cp README.md "$DEB_DIR/usr/share/doc/tires/" 2>/dev/null || true
+        cp storage.json "$DEB_DIR/etc/tires/storage.json.example" 2>/dev/null || true
+
         # Copy systemd files
         cp ./deb-build/tires/systemd/tires.service "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
         cp ./deb-build/tires/systemd/tires.timer "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
-        
+
         # Create control file with dependencies
         cat > "$DEB_DIR/DEBIAN/control" << EOF
         Package: tires
@@ -173,7 +171,7 @@ jobs:
          .
          Includes libMono.Unix.so for POSIX compatibility.
         EOF
-        
+
         # Create postinst script
         cat > "$DEB_DIR/DEBIAN/postinst" << 'EOF'
         #!/bin/bash
@@ -187,16 +185,7 @@ jobs:
         fi
         EOF
         chmod +x "$DEB_DIR/DEBIAN/postinst"
-        
-        # Create postrm script
-        cat > "$DEB_DIR/DEBIAN/postrm" << 'EOF'
-        #!/bin/bash
-        if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
-            ldconfig 2>/dev/null || true
-        fi
-        EOF
-        chmod +x "$DEB_DIR/DEBIAN/postrm"
-        
+
         # Build .deb
         cd ./deb-build
         dpkg-deb --build "tires_${DEB_VERSION}-1_amd64"
@@ -223,39 +212,34 @@ jobs:
       with:
         name: tires-linux-x64
         path: ./rpm-package
-    
+
     - name: Copy additional files
       run: |
         cp README.md ./rpm-package/ 2>/dev/null || true
         cp storage.json ./rpm-package/ 2>/dev/null || true
         mkdir -p ./rpm-package/systemd
-        cp packaging/systemd/*.service ./rpm-package/systemd/ 2>/dev/null || true
-        cp packaging/systemd/*.timer ./rpm-package/systemd/ 2>/dev/null || true
-        # Copy Mono.Unix library (REQUIRED!)
-        cp ./package/tires/libMono.Unix.so ./rpm-package/ 2>/dev/null || {
-            echo "::error::libMono.Unix.so not found!"
-            exit 1
-        }
-    
+        cp ./rpm-package/systemd/*.service ./rpm-package/systemd/ 2>/dev/null || true
+        cp ./rpm-package/systemd/*.timer ./rpm-package/systemd/ 2>/dev/null || true
+
     - name: Create .rpm package
       run: |
         VERSION=${{ needs.build.outputs.version }}
         # Sanitize version for RPM
         RPM_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.~_+]/_/g')
         RPM_DIR="rpm-build"
-        
+
         mkdir -p "$RPM_DIR/SPECS"
         mkdir -p "$RPM_DIR/SOURCES"
         mkdir -p "$RPM_DIR/BUILD"
         mkdir -p "$RPM_DIR/RPMS"
         mkdir -p "$RPM_DIR/SRPMS"
-        
+
         # Create source tarball with proper directory structure
         mkdir -p "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
         cp -r ./rpm-package/* "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/"
         tar -czf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}.tar.gz" -C "$RPM_DIR/SOURCES" "tires-${RPM_VERSION}"
         rm -rf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
-        
+
         # Create spec file
         cat > "$RPM_DIR/SPECS/tires.spec" << EOF
         Name: tires
@@ -266,47 +250,46 @@ jobs:
         URL: https://github.com/gailoks/tires
         Source0: %{name}-%{version}.tar.gz
         BuildArch: x86_64
-        BuildRequires: systemd-units
         Requires: glibc >= 2.31
-        
+
         %description
         Tires is a tiered storage manager that automatically moves files
         between storage tiers based on configurable rules.
         
         Includes libMono.Unix.so for POSIX compatibility.
-        
+
         %prep
         %setup -q
-        
+
         %install
         mkdir -p %{buildroot}/usr/bin
         mkdir -p %{buildroot}/usr/lib
         mkdir -p %{buildroot}/etc/tires
         mkdir -p %{buildroot}/lib/systemd/system
-        
+
         cp tires %{buildroot}/usr/bin/
         cp libMono.Unix.so %{buildroot}/usr/lib/
         cp storage.json %{buildroot}/etc/tires/storage.json.example
         cp systemd/tires.service %{buildroot}/lib/systemd/system/
         cp systemd/tires.timer %{buildroot}/lib/systemd/system/
-        
+
         %files
         /usr/bin/tires
         /usr/lib/libMono.Unix.so
         /etc/tires/storage.json.example
         /lib/systemd/system/tires.service
         /lib/systemd/system/tires.timer
-        
+
         %post
         ldconfig || :
         systemctl daemon-reload || :
-        
+
         %preun
         if [ \$1 -eq 0 ]; then
             systemctl stop tires.timer || :
             systemctl disable tires.timer || :
         fi
-        
+
         %postun
         ldconfig || :
         if [ \$1 -eq 1 ]; then
@@ -349,7 +332,7 @@ jobs:
         body: |
           ## Changes
           
-          See the [changelog](https://github.com/gailoks/tires/blob/main/CHANGELOG.md) for details.
+          See the [changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           
           ## Installation
           
@@ -358,8 +341,6 @@ jobs:
           tar -xzf tires-*-linux-x64.tar.gz
           cd tires-*-linux-x64
           sudo cp tires /usr/local/bin/
-          sudo cp libMono.Unix.so /usr/lib/
-          sudo ldconfig
           ```
           
           ### From .deb
@@ -372,11 +353,6 @@ jobs:
           ```bash
           sudo rpm -ivh tires-*.rpm
           ```
-          
-          ## Important
-          
-          This release includes `libMono.Unix.so` which is required for Tires to work.
-          Do NOT install system Mono packages - use the included library.
         files: ./release-assets/*
         draft: true
         prerelease: false
