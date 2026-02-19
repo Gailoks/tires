@@ -19,7 +19,7 @@ public class ConfigLoader : IConfigLoader
             LogLevel = ParseLogLevel(root.GetProperty("LogLevel").GetString() ?? "Information"),
             TemporaryPath = root.GetProperty("TemporaryPath").GetString() ?? "tmp",
             RunInterval = root.TryGetProperty("RunInterval", out var ri) ? ri.GetString() ?? "hourly" : "hourly",
-            ProcessPriority = root.TryGetProperty("ProcessPriority", out var pp) ? pp.GetInt32() : 10
+            ProcessPriority = root.TryGetProperty("ProcessPriority", out var pp) ? pp.GetInt32() : 2
         };
 
         // Parse Tiers
