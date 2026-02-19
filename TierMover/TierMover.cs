@@ -47,16 +47,27 @@ public class TierMover : ITierMover
 			Directory.CreateDirectory(tmpDir);
 			string tmpFile = Path.Combine(tmpDir, Guid.NewGuid().ToString() + ".tmp");
 
+			// Copy file content
 			File.Copy(srcMain, tmpFile, overwrite: true);
 
-			if (file.Paths.Count > 0)
-			{
-				Syscall.chmod(tmpFile, file.Mode);
-				Syscall.chown(tmpFile, file.OwnerUid, file.GroupGid);
-			}
-
+			// Move to destination FIRST
 			File.Move(tmpFile, dstMainPath, true);
 
+			// THEN preserve ownership and permissions (must be after move!)
+			if (file.Paths.Count > 0)
+			{
+				// Set ownership (uid/gid)
+				Syscall.chown(dstMainPath, file.OwnerUid, file.GroupGid);
+				// Set permissions (mode)
+				Syscall.chmod(dstMainPath, file.Mode);
+				// Set timestamps (access and modify time) - convert Timespec to Timeval
+				Syscall.utimes(dstMainPath, new[] {
+					new Timeval() { tv_sec = file.AccessTime.tv_sec, tv_usec = file.AccessTime.tv_nsec / 1000 },
+					new Timeval() { tv_sec = file.ModifyTime.tv_sec, tv_usec = file.ModifyTime.tv_nsec / 1000 }
+				});
+			}
+
+			// Recreate hardlinks for additional paths
 			for (int i = 1; i < file.Paths.Count; i++)
 			{
 				string originalRel = Path.GetRelativePath(src._path, file.Paths[i]);
@@ -65,6 +76,7 @@ public class TierMover : ITierMover
 				Syscall.link(dstMainPath, dstPath);
 			}
 
+			// Remove old files
 			foreach (var oldPath in file.Paths)
 				if (File.Exists(oldPath))
 					File.Delete(oldPath);

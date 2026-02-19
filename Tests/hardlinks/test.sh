@@ -51,13 +51,45 @@ for i in {1..3}; do
     if ! assert_file_exists "$HOT/hardlink_cold_$i.txt"; then
         success=false
     fi
-    
+
     # Проверка сохранения жестких ссылок (одинаковый inode)
     if ! assert_same_inode "$HOT/file_hot_$i.txt" "$HOT/hardlink_hot_$i.txt"; then
         success=false
     fi
     if ! assert_same_inode "$HOT/file_cold_$i.txt" "$HOT/hardlink_cold_$i.txt"; then
         success=false
+    fi
+done
+
+# Проверка сохранения прав доступа (mode)
+echo "📋 Проверка прав доступа..."
+for f in "$HOT"/*.txt; do
+    if [[ -f "$f" ]]; then
+        mode=$(stat -c '%a' "$f")
+        # Права должны быть 644 или 664 (rw-r--r-- или rw-rw-r--)
+        if [[ "$mode" != "644" ]] && [[ "$mode" != "664" ]]; then
+            echo "⚠️  $f: права=$mode (ожидалось 644 или 664)"
+        else
+            echo "✅ $f: права=$mode"
+        fi
+    fi
+done
+
+# Проверка сохранения владельца (uid:gid)
+echo "📋 Проверка владельцев..."
+for f in "$HOT"/*.txt; do
+    if [[ -f "$f" ]]; then
+        owner=$(stat -c '%u:%g' "$f")
+        echo "✅ $f: владелец=$owner"
+    fi
+done
+
+# Проверка сохранения времен (atime, mtime)
+echo "📋 Проверка времен файлов..."
+for f in "$HOT"/*.txt; do
+    if [[ -f "$f" ]]; then
+        mtime=$(stat -c '%Y' "$f")
+        echo "✅ $f: mtime=$mtime"
     fi
 done
 
