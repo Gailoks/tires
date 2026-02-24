@@ -61,6 +61,7 @@ jobs:
     # ========== tar.gz Package ==========
     - name: Create tar.gz Package
       run: |
+        set -euo pipefail
         VERSION=${{ steps.get_version.outputs.version }}
         PACKAGE_DIR="tires-$VERSION-linux-x64"
         mkdir -p ./release/$PACKAGE_DIR
@@ -75,10 +76,12 @@ jobs:
 
         cd ./release
         tar -czf "$PACKAGE_DIR.tar.gz" "$PACKAGE_DIR"
+        echo "✅ tar.gz package created: $(ls -lh *.tar.gz)"
 
     # ========== .deb Package ==========
     - name: Create .deb Package
       run: |
+        set -euo pipefail
         VERSION=${{ steps.get_version.outputs.version }}
         DEB_VERSION=$(echo "$VERSION" | tr '-' '+' | sed 's/[^a-zA-Z0-9.:+~]/_/g')
         DEB_DIR="deb-build/tires_${DEB_VERSION}-1_amd64"
@@ -105,33 +108,35 @@ jobs:
         cp packaging/systemd/tires.timer "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
 
         cat > "$DEB_DIR/DEBIAN/control" << EOF
-        Package: tires
-        Version: $DEB_VERSION
-        Section: utils
-        Priority: optional
-        Architecture: amd64
-        Depends: libc6 (>= 2.31)
-        Maintainer: Tires Contributors
-        Description: Tiered Storage Manager for mergerfs
-         Tires is a tiered storage manager that automatically moves files
-         between storage tiers based on configurable rules.
-         .
-         Includes libMono.Unix.so for POSIX compatibility.
-        EOF
+Package: tires
+Version: $DEB_VERSION
+Section: utils
+Priority: optional
+Architecture: amd64
+Depends: libc6 (>= 2.31)
+Maintainer: Tires Contributors
+Description: Tiered Storage Manager for mergerfs
+ Tires is a tiered storage manager that automatically moves files
+ between storage tiers based on configurable rules.
+ .
+ Includes libMono.Unix.so for POSIX compatibility.
+EOF
 
         cat > "$DEB_DIR/DEBIAN/postinst" << 'EOF'
-        #!/bin/bash
-        set -e
-        mkdir -p /etc/tires
-        ldconfig 2>/dev/null || true
-        if command -v systemctl &> /dev/null; then
-            systemctl daemon-reload || true
-        fi
-        EOF
+#!/bin/bash
+set -e
+mkdir -p /etc/tires
+ldconfig 2>/dev/null || true
+if command -v systemctl &> /dev/null; then
+    systemctl daemon-reload || true
+fi
+EOF
         chmod +x "$DEB_DIR/DEBIAN/postinst"
 
         cd ./deb-build
         dpkg-deb --build "tires_${DEB_VERSION}-1_amd64"
+        cp "tires_${DEB_VERSION}-1_amd64.deb" ../release/
+        echo "✅ .deb package created: $(ls -lh ../release/*.deb)"
 
     # ========== .rpm Package ==========
     - name: Install rpmbuild
@@ -139,6 +144,7 @@ jobs:
 
     - name: Create .rpm Package
       run: |
+        set -euo pipefail
         VERSION=${{ steps.get_version.outputs.version }}
         RPM_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.~_+]/_/g')
         RPM_DIR="rpm-build"
@@ -158,63 +164,64 @@ jobs:
         rm -rf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
 
         cat > "$RPM_DIR/SPECS/tires.spec" << EOF
-        Name: tires
-        Version: $RPM_VERSION
-        Release: 1%{?dist}
-        Summary: Tiered Storage Manager for mergerfs
-        License: ISC
-        URL: https://github.com/gailoks/tires
-        Source0: %{name}-%{version}.tar.gz
-        BuildArch: x86_64
-        Requires: glibc >= 2.31
+Name: tires
+Version: $RPM_VERSION
+Release: 1%{?dist}
+Summary: Tiered Storage Manager for mergerfs
+License: ISC
+URL: https://github.com/gailoks/tires
+Source0: %{name}-%{version}.tar.gz
+BuildArch: x86_64
+Requires: glibc >= 2.31
 
-        %description
-        Tires is a tiered storage manager that automatically moves files
-        between storage tiers based on configurable rules.
+%description
+Tires is a tiered storage manager that automatically moves files
+between storage tiers based on configurable rules.
 
-        Includes libMono.Unix.so for POSIX compatibility.
+Includes libMono.Unix.so for POSIX compatibility.
 
-        %prep
-        %setup -q
+%prep
+%setup -q
 
-        %install
-        mkdir -p %{buildroot}/usr/bin
-        mkdir -p %{buildroot}/usr/lib
-        mkdir -p %{buildroot}/etc/tires
-        mkdir -p %{buildroot}/lib/systemd/system
+%install
+mkdir -p %{buildroot}/usr/bin
+mkdir -p %{buildroot}/usr/lib
+mkdir -p %{buildroot}/etc/tires
+mkdir -p %{buildroot}/lib/systemd/system
 
-        cp tires %{buildroot}/usr/bin/
-        cp libMono.Unix.so %{buildroot}/usr/lib/
-        cp storage.json %{buildroot}/etc/tires/storage.json.example
-        cp systemd/tires.service %{buildroot}/lib/systemd/system/
-        cp systemd/tires.timer %{buildroot}/lib/systemd/system/
+cp tires %{buildroot}/usr/bin/
+cp libMono.Unix.so %{buildroot}/usr/lib/
+cp storage.json %{buildroot}/etc/tires/storage.json.example
+cp systemd/tires.service %{buildroot}/lib/systemd/system/
+cp systemd/tires.timer %{buildroot}/lib/systemd/system/
 
-        %files
-        /usr/bin/tires
-        /usr/lib/libMono.Unix.so
-        /etc/tires/storage.json.example
-        /lib/systemd/system/tires.service
-        /lib/systemd/system/tires.timer
+%files
+/usr/bin/tires
+/usr/lib/libMono.Unix.so
+/etc/tires/storage.json.example
+/lib/systemd/system/tires.service
+/lib/systemd/system/tires.timer
 
-        %post
-        ldconfig || :
-        systemctl daemon-reload || :
+%post
+ldconfig || :
+systemctl daemon-reload || :
 
-        %preun
-        if [ \$1 -eq 0 ]; then
-            systemctl stop tires.timer || :
-            systemctl disable tires.timer || :
-        fi
+%preun
+if [ \$1 -eq 0 ]; then
+    systemctl stop tires.timer || :
+    systemctl disable tires.timer || :
+fi
 
-        %postun
-        ldconfig || :
-        if [ \$1 -eq 1 ]; then
-            systemctl try-restart tires.timer || :
-        fi
-        EOF
+%postun
+ldconfig || :
+if [ \$1 -eq 1 ]; then
+    systemctl try-restart tires.timer || :
+fi
+EOF
 
         rpmbuild --define "_topdir $(pwd)/$RPM_DIR" -bb "$RPM_DIR/SPECS/tires.spec"
-        find "$RPM_DIR/RPMS" -name "*.rpm" -exec cp {} ./ \;
+        find "$RPM_DIR/RPMS" -name "*.rpm" -exec cp {} ./release/ \;
+        echo "✅ .rpm package created: $(ls -lh ./release/*.rpm)"
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
@@ -222,8 +229,8 @@ jobs:
         name: tires-packages
         path: |
           ./release/*.tar.gz
-          ./deb-build/*.deb
-          ./*.rpm
+          ./release/*.deb
+          ./release/*.rpm
         retention-days: 7
 
   release:

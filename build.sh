@@ -69,37 +69,36 @@ cd "$SCRIPT_DIR"
 
 echo -e "${GREEN}✅ tar.gz package created: $OUTPUT_DIR/tires-$VERSION-linux-x64.tar.gz${NC}"
 
-# Create .deb package
+# Create .deb package using Docker
 echo -e "${YELLOW}📦 Creating .deb package...${NC}"
-if command -v dpkg-deb &> /dev/null; then
-    DEB_BUILD_DIR="$OUTPUT_DIR/deb-build"
-    DEB_PACKAGE_DIR="$DEB_BUILD_DIR/tires_$VERSION-1_amd64"
+DEB_BUILD_DIR="$OUTPUT_DIR/deb-build"
+DEB_PACKAGE_DIR="$DEB_BUILD_DIR/tires_$VERSION-1_amd64"
 
-    mkdir -p "$DEB_PACKAGE_DIR/DEBIAN"
-    mkdir -p "$DEB_PACKAGE_DIR/usr/bin"
-    mkdir -p "$DEB_PACKAGE_DIR/usr/lib"
-    mkdir -p "$DEB_PACKAGE_DIR/usr/share/tires"
-    mkdir -p "$DEB_PACKAGE_DIR/etc/tires"
-    mkdir -p "$DEB_PACKAGE_DIR/lib/systemd/system"
+mkdir -p "$DEB_PACKAGE_DIR/DEBIAN"
+mkdir -p "$DEB_PACKAGE_DIR/usr/bin"
+mkdir -p "$DEB_PACKAGE_DIR/usr/lib"
+mkdir -p "$DEB_PACKAGE_DIR/usr/share/tires"
+mkdir -p "$DEB_PACKAGE_DIR/etc/tires"
+mkdir -p "$DEB_PACKAGE_DIR/lib/systemd/system"
 
-    # Copy binary
-    cp "$OUTPUT_DIR/linux-x64/tires" "$DEB_PACKAGE_DIR/usr/bin/tires"
-    chmod +x "$DEB_PACKAGE_DIR/usr/bin/tires"
+# Copy binary
+cp "$OUTPUT_DIR/linux-x64/tires" "$DEB_PACKAGE_DIR/usr/bin/tires"
+chmod +x "$DEB_PACKAGE_DIR/usr/bin/tires"
 
-    # Copy Mono.Unix library (REQUIRED!)
-    cp "$OUTPUT_DIR/linux-x64/libMono.Unix.so" "$DEB_PACKAGE_DIR/usr/lib/"
+# Copy Mono.Unix library (REQUIRED!)
+cp "$OUTPUT_DIR/linux-x64/libMono.Unix.so" "$DEB_PACKAGE_DIR/usr/lib/"
 
-    # Copy config example
-    cp "$SCRIPT_DIR/storage.json" "$DEB_PACKAGE_DIR/etc/tires/storage.json.example" 2>/dev/null || true
+# Copy config example
+cp "$SCRIPT_DIR/storage.json" "$DEB_PACKAGE_DIR/etc/tires/storage.json.example" 2>/dev/null || true
 
-    # Copy systemd files
-    cp "$SCRIPT_DIR/packaging/systemd/tires.service" "$DEB_PACKAGE_DIR/lib/systemd/system/" 2>/dev/null || true
-    cp "$SCRIPT_DIR/packaging/systemd/tires.timer" "$DEB_PACKAGE_DIR/lib/systemd/system/" 2>/dev/null || true
-    cp "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" "$DEB_PACKAGE_DIR/usr/bin/" 2>/dev/null || true
-    chmod +x "$DEB_PACKAGE_DIR/usr/bin/tires-setup-timer.sh" 2>/dev/null || true
+# Copy systemd files
+cp "$SCRIPT_DIR/packaging/systemd/tires.service" "$DEB_PACKAGE_DIR/lib/systemd/system/" 2>/dev/null || true
+cp "$SCRIPT_DIR/packaging/systemd/tires.timer" "$DEB_PACKAGE_DIR/lib/systemd/system/" 2>/dev/null || true
+cp "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" "$DEB_PACKAGE_DIR/usr/bin/" 2>/dev/null || true
+chmod +x "$DEB_PACKAGE_DIR/usr/bin/tires-setup-timer.sh" 2>/dev/null || true
 
-    # Create control file
-    cat > "$DEB_PACKAGE_DIR/DEBIAN/control" << EOF
+# Create control file
+cat > "$DEB_PACKAGE_DIR/DEBIAN/control" << EOF
 Package: tires
 Version: $VERSION
 Section: utils
@@ -114,8 +113,8 @@ Description: Tiered Storage Manager for mergerfs
  Includes libMono.Unix.so for POSIX compatibility.
 EOF
 
-    # Create postinst script
-    cat > "$DEB_PACKAGE_DIR/DEBIAN/postinst" << 'EOF'
+# Create postinst script
+cat > "$DEB_PACKAGE_DIR/DEBIAN/postinst" << 'EOF'
 #!/bin/bash
 set -e
 mkdir -p /etc/tires
@@ -126,37 +125,54 @@ if command -v systemctl &> /dev/null; then
     systemctl daemon-reload || true
 fi
 EOF
-    chmod +x "$DEB_PACKAGE_DIR/DEBIAN/postinst"
+chmod +x "$DEB_PACKAGE_DIR/DEBIAN/postinst"
 
-    # Create postrm script (cleanup on uninstall)
-    cat > "$DEB_PACKAGE_DIR/DEBIAN/postrm" << 'EOF'
+# Create postrm script (cleanup on uninstall)
+cat > "$DEB_PACKAGE_DIR/DEBIAN/postrm" << 'EOF'
 #!/bin/bash
 if [ "$1" = "remove" ] || [ "$1" = "purge" ]; then
     ldconfig 2>/dev/null || true
 fi
 EOF
-    chmod +x "$DEB_PACKAGE_DIR/DEBIAN/postrm"
+chmod +x "$DEB_PACKAGE_DIR/DEBIAN/postrm"
 
-    # Build .deb
+# Build .deb using Docker if dpkg-deb not available locally
+if command -v dpkg-deb &> /dev/null; then
     cd "$DEB_BUILD_DIR"
     dpkg-deb --build "tires_$VERSION-1_amd64"
     cp "tires_$VERSION-1_amd64.deb" "$OUTPUT_DIR/"
     cd "$SCRIPT_DIR"
-
-    echo -e "${GREEN}✅ .deb package created: $OUTPUT_DIR/tires_$VERSION-1_amd64.deb${NC}"
 else
-    echo -e "${YELLOW}⚠️  dpkg-deb not found, skipping .deb package${NC}"
+    # Use Docker to build .deb
+    docker run --rm -v "$DEB_BUILD_DIR:/build" -w /build ubuntu:22.04 bash -c "
+        apt-get update && apt-get install -y dpkg
+        dpkg-deb --build 'tires_$VERSION-1_amd64'
+    "
+    cp "$DEB_BUILD_DIR/tires_$VERSION-1_amd64.deb" "$OUTPUT_DIR/"
 fi
 
-# Create .rpm package
-echo -e "${YELLOW}📦 Creating .rpm package...${NC}"
-if command -v rpmbuild &> /dev/null; then
-    RPM_BUILD_DIR="$OUTPUT_DIR/rpm-build"
-    mkdir -p "$RPM_BUILD_DIR/SPECS"
-    mkdir -p "$RPM_BUILD_DIR/BUILDROOT"
+echo -e "${GREEN}✅ .deb package created: $OUTPUT_DIR/tires_$VERSION-1_amd64.deb${NC}"
 
-    # Create spec file
-    cat > "$RPM_BUILD_DIR/SPECS/tires.spec" << EOF
+# Create .rpm package using Docker
+echo -e "${YELLOW}📦 Creating .rpm package...${NC}"
+RPM_BUILD_DIR="$OUTPUT_DIR/rpm-build"
+mkdir -p "$RPM_BUILD_DIR/SPECS"
+mkdir -p "$RPM_BUILD_DIR/SOURCES"
+mkdir -p "$RPM_BUILD_DIR/BUILD"
+mkdir -p "$RPM_BUILD_DIR/RPMS"
+mkdir -p "$RPM_BUILD_DIR/SRPMS"
+
+# Create source tarball
+mkdir -p "$RPM_BUILD_DIR/SOURCES/tires-$VERSION"
+cp -r "$OUTPUT_DIR/linux-x64/"* "$RPM_BUILD_DIR/SOURCES/tires-$VERSION/"
+cp "$SCRIPT_DIR/README.md" "$RPM_BUILD_DIR/SOURCES/tires-$VERSION/"
+cp "$SCRIPT_DIR/storage.json" "$RPM_BUILD_DIR/SOURCES/tires-$VERSION/" 2>/dev/null || true
+cp -r "$SCRIPT_DIR/packaging/systemd" "$RPM_BUILD_DIR/SOURCES/tires-$VERSION/" 2>/dev/null || true
+tar -czf "$RPM_BUILD_DIR/SOURCES/tires-$VERSION.tar.gz" -C "$RPM_BUILD_DIR/SOURCES" "tires-$VERSION"
+rm -rf "$RPM_BUILD_DIR/SOURCES/tires-$VERSION"
+
+# Create spec file
+cat > "$RPM_BUILD_DIR/SPECS/tires.spec" << EOF
 Name: tires
 Version: $VERSION
 Release: 1%{?dist}
@@ -165,7 +181,6 @@ License: MIT
 URL: https://github.com/gailoks/tires
 Source0: %{name}-%{version}.tar.gz
 BuildArch: x86_64
-BuildRequires: systemd-units
 Requires: glibc >= 2.31
 
 %description
@@ -216,21 +231,21 @@ fi
 /lib/systemd/system/tires.timer
 EOF
 
-    # Create source tarball
-    cd "$PACKAGE_DIR"
-    tar -czf "$RPM_BUILD_DIR/SOURCES/tires-$VERSION.tar.gz" .
-    cd "$SCRIPT_DIR"
-
-    # Build RPM
+# Build RPM using Docker if rpmbuild not available locally
+if command -v rpmbuild &> /dev/null; then
     rpmbuild --define "_topdir $RPM_BUILD_DIR" -bb "$RPM_BUILD_DIR/SPECS/tires.spec"
-
-    # Copy RPM to artifacts
-    find "$RPM_BUILD_DIR/RPMS" -name "*.rpm" -exec cp {} "$OUTPUT_DIR/" \;
-
-    echo -e "${GREEN}✅ .rpm package created${NC}"
 else
-    echo -e "${YELLOW}⚠️  rpmbuild not found, skipping .rpm package${NC}"
+    # Use Docker to build RPM
+    docker run --rm -v "$RPM_BUILD_DIR:/build" -w /build centos:7 bash -c "
+        yum install -y rpm-build
+        rpmbuild --define '_topdir /build' -bb /build/SPECS/tires.spec
+    "
 fi
+
+# Copy RPM to artifacts
+find "$RPM_BUILD_DIR/RPMS" -name "*.rpm" -exec cp {} "$OUTPUT_DIR/" \;
+
+echo -e "${GREEN}✅ .rpm package created: $OUTPUT_DIR/$(find "$RPM_BUILD_DIR/RPMS" -name '*.rpm' -printf '%f\n' | head -1)${NC}"
 
 echo ""
 echo -e "${GREEN}════════════════════════════════════════${NC}"
