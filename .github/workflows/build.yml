@@ -107,30 +107,18 @@ jobs:
         cp packaging/systemd/tires.service "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
         cp packaging/systemd/tires.timer "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
 
-        cat > "$DEB_DIR/DEBIAN/control" << EOF
-Package: tires
-Version: $DEB_VERSION
-Section: utils
-Priority: optional
-Architecture: amd64
-Depends: libc6 (>= 2.31)
-Maintainer: Tires Contributors
-Description: Tiered Storage Manager for mergerfs
- Tires is a tiered storage manager that automatically moves files
- between storage tiers based on configurable rules.
- .
- Includes libMono.Unix.so for POSIX compatibility.
-EOF
+        # Create control file
+        echo "Package: tires" > "$DEB_DIR/DEBIAN/control"
+        echo "Version: ${DEB_VERSION}" >> "$DEB_DIR/DEBIAN/control"
+        echo "Section: utils" >> "$DEB_DIR/DEBIAN/control"
+        echo "Priority: optional" >> "$DEB_DIR/DEBIAN/control"
+        echo "Architecture: amd64" >> "$DEB_DIR/DEBIAN/control"
+        echo "Depends: libc6 (>= 2.31)" >> "$DEB_DIR/DEBIAN/control"
+        echo "Maintainer: Tires Contributors" >> "$DEB_DIR/DEBIAN/control"
+        echo "Description: Tiered Storage Manager for mergerfs. Tires is a tiered storage manager that automatically moves files between storage tiers based on configurable rules. Includes libMono.Unix.so for POSIX compatibility." >> "$DEB_DIR/DEBIAN/control"
 
-        cat > "$DEB_DIR/DEBIAN/postinst" << 'EOF'
-#!/bin/bash
-set -e
-mkdir -p /etc/tires
-ldconfig 2>/dev/null || true
-if command -v systemctl &> /dev/null; then
-    systemctl daemon-reload || true
-fi
-EOF
+        # Create postinst script
+        printf '%s\n' '#!/bin/bash' 'set -e' 'mkdir -p /etc/tires' 'ldconfig 2>/dev/null || true' 'if command -v systemctl &> /dev/null; then' '    systemctl daemon-reload || true' 'fi' > "$DEB_DIR/DEBIAN/postinst"
         chmod +x "$DEB_DIR/DEBIAN/postinst"
 
         cd ./deb-build
@@ -140,7 +128,7 @@ EOF
 
     # ========== .rpm Package ==========
     - name: Install rpmbuild
-      run: sudo apt-get update && sudo apt-get install -y rpm
+      run: sudo apt-get update && sudo apt-get install -y rpm rpm-common
 
     - name: Create .rpm Package
       run: |
@@ -163,61 +151,8 @@ EOF
         tar -czf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}.tar.gz" -C "$RPM_DIR/SOURCES" "tires-${RPM_VERSION}"
         rm -rf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
 
-        cat > "$RPM_DIR/SPECS/tires.spec" << EOF
-Name: tires
-Version: $RPM_VERSION
-Release: 1%{?dist}
-Summary: Tiered Storage Manager for mergerfs
-License: ISC
-URL: https://github.com/gailoks/tires
-Source0: %{name}-%{version}.tar.gz
-BuildArch: x86_64
-Requires: glibc >= 2.31
-
-%description
-Tires is a tiered storage manager that automatically moves files
-between storage tiers based on configurable rules.
-
-Includes libMono.Unix.so for POSIX compatibility.
-
-%prep
-%setup -q
-
-%install
-mkdir -p %{buildroot}/usr/bin
-mkdir -p %{buildroot}/usr/lib
-mkdir -p %{buildroot}/etc/tires
-mkdir -p %{buildroot}/lib/systemd/system
-
-cp tires %{buildroot}/usr/bin/
-cp libMono.Unix.so %{buildroot}/usr/lib/
-cp storage.json %{buildroot}/etc/tires/storage.json.example
-cp systemd/tires.service %{buildroot}/lib/systemd/system/
-cp systemd/tires.timer %{buildroot}/lib/systemd/system/
-
-%files
-/usr/bin/tires
-/usr/lib/libMono.Unix.so
-/etc/tires/storage.json.example
-/lib/systemd/system/tires.service
-/lib/systemd/system/tires.timer
-
-%post
-ldconfig || :
-systemctl daemon-reload || :
-
-%preun
-if [ \$1 -eq 0 ]; then
-    systemctl stop tires.timer || :
-    systemctl disable tires.timer || :
-fi
-
-%postun
-ldconfig || :
-if [ \$1 -eq 1 ]; then
-    systemctl try-restart tires.timer || :
-fi
-EOF
+        # Create spec file using base64 to avoid YAML parsing issues with % characters
+        echo "TmFtZTogdGlyZXMKVmVyc2lvbjogVkVSU0lPTl9QTEFDRUhPTERFUgpSZWxlYXNlOiAxJXs/ZGlzdH0KU3VtbWFyeTogVGllcmVkIFN0b3JhZ2UgTWFuYWdlciBmb3IgbWVyZ2VyZnMKTGljZW5zZTogSVNDClVSTDogaHR0cHM6Ly9naXRodWIuY29tL2dhaWxva3MvdGlyZXMKU291cmNlMDogJXtuYW1lfS0le3ZlcnNpb259LnRhci5negpCdWlsZEFyY2g6IHg4Nl82NApSZXF1aXJlczogZ2xpYmMgPj0gMi4zMQoKJWRlc2NyaXB0aW9uClRpcmVzIGlzIGEgdGllcmVkIHN0b3JhZ2UgbWFuYWdlciB0aGF0IGF1dG9tYXRpY2FsbHkgbW92ZXMgZmlsZXMKYmV0d2VlbiBzdG9yYWdlIHRpZXJzIGJhc2VkIG9uIGNvbmZpZ3VyYWJsZSBydWxlcy4KCkluY2x1ZGVzIGxpYk1vbm8uVW5peC5zbyBmb3IgUE9TSVggY29tcGF0aWJpbGl0eS4KCiVwcmVwCiVzZXR1cCAtcQoKJWluc3RhbGwKbWtkaXIgLXAgJXtidWlsZHJvb3R9L3Vzci9iaW4KbWtkaXIgLXAgJXtidWlsZHJvb3R9L3Vzci9saWIKbWtkaXIgLXAgJXtidWlsZHJvb3R9L2V0Yy90aXJlcwpta2RpciAtcCAle2J1aWxkcm9vdH0vbGliL3N5c3RlbWQvc3lzdGVtCgpjcCB0aXJlcyAle2J1aWxkcm9vdH0vdXNyL2Jpbi8KY3AgbGliTW9uby5Vbml4LnNvICV7YnVpbGRyb290fS91c3IvbGliLwpjcCBzdG9yYWdlLmpzb24gJXtidWlsZHJvb3R9L2V0Yy90aXJlcy9zdG9yYWdlLmpzb24uZXhhbXBsZQpjcCBzeXN0ZW1kL3RpcmVzLnNlcnZpY2UgJXtidWlsZHJvb3R9L2xpYi9zeXN0ZW1kL3N5c3RlbS8KY3Agc3lzdGVtZC90aXJlcy50aW1lciAle2J1aWxkcm9vdH0vbGliL3N5c3RlbWQvc3lzdGVtLwoKJWZpbGVzCi91c3IvYmluL3RpcmVzCi91c3IvbGliL2xpYk1vbm8uVW5peC5zbwovZXRjL3RpcmVzL3N0b3JhZ2UuanNvbi5leGFtcGxlCi9saWIvc3lzdGVtZC9zeXN0ZW0vdGlyZXMuc2VydmljZQovbGliL3N5c3RlbWQvc3lzdGVtL3RpcmVzLnRpbWVyCgolcG9zdApsZGNvbmZpZyB8fCA6CnN5c3RlbWN0bCBkYWVtb24tcmVsb2FkIHx8IDoKCiVwcmV1bgppZiBbICQxIC1lcSAwIF07IHRoZW4KICAgIHN5c3RlbWN0bCBzdG9wIHRpcmVzLnRpbWVyIHx8IDoKICAgIHN5c3RlbWN0bCBkaXNhYmxlIHRpcmVzLnRpbWVyIHx8IDoKZmkKCiVwb3N0dW4KbGRjb25maWcgfHwgOgppZiBbICQxIC1lcSAxIF07IHRoZW4KICAgIHN5c3RlbWN0bCB0cnktcmVzdGFydCB0aXJlcy50aW1lciB8fCA6CmZpCg==" | base64 -d | sed "s/VERSION_PLACEHOLDER/$RPM_VERSION/" > "$RPM_DIR/SPECS/tires.spec"
 
         rpmbuild --define "_topdir $(pwd)/$RPM_DIR" -bb "$RPM_DIR/SPECS/tires.spec"
         find "$RPM_DIR/RPMS" -name "*.rpm" -exec cp {} ./release/ \;

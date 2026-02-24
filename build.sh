@@ -235,9 +235,9 @@ EOF
 if command -v rpmbuild &> /dev/null; then
     rpmbuild --define "_topdir $RPM_BUILD_DIR" -bb "$RPM_BUILD_DIR/SPECS/tires.spec"
 else
-    # Use Docker to build RPM
-    docker run --rm -v "$RPM_BUILD_DIR:/build" -w /build centos:7 bash -c "
-        yum install -y rpm-build
+    # Use Docker to build RPM (using RockyLinux as CentOS 7 is EOL)
+    docker run --rm -v "$RPM_BUILD_DIR:/build" -w /build rockylinux:9 bash -c "
+        dnf install -y rpm-build
         rpmbuild --define '_topdir /build' -bb /build/SPECS/tires.spec
     "
 fi
