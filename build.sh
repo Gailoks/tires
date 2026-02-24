@@ -30,7 +30,7 @@ mkdir -p "$OUTPUT_DIR"
 
 # Build native AOT binary
 echo -e "${YELLOW}🔨 Building native AOT binary...${NC}"
-dotnet publish -c Release -r linux-x64 --self-contained -o "$OUTPUT_DIR/linux-x64"
+dotnet publish -c Release -r linux-x64 --self-contained -p:PublishAot=true -o "$OUTPUT_DIR/linux-x64"
 
 if [[ -f "$OUTPUT_DIR/linux-x64/tires" ]]; then
     echo -e "${GREEN}✅ Native AOT binary built successfully${NC}"
@@ -58,6 +58,9 @@ cp "$OUTPUT_DIR/linux-x64/libMono.Unix.so" "$PACKAGE_DIR/"
 cp "$SCRIPT_DIR/README.md" "$PACKAGE_DIR/"
 cp "$SCRIPT_DIR/storage.json" "$PACKAGE_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/packaging/INSTALL.md" "$PACKAGE_DIR/" 2>/dev/null || true
+cp "$SCRIPT_DIR/packaging/install.sh" "$PACKAGE_DIR/" 2>/dev/null || true
+cp "$SCRIPT_DIR/packaging/uninstall.sh" "$PACKAGE_DIR/" 2>/dev/null || true
+chmod +x "$PACKAGE_DIR/install.sh" "$PACKAGE_DIR/uninstall.sh" 2>/dev/null || true
 mkdir -p "$PACKAGE_DIR/systemd"
 cp "$SCRIPT_DIR/packaging/systemd/"*.service "$PACKAGE_DIR/systemd/" 2>/dev/null || true
 cp "$SCRIPT_DIR/packaging/systemd/"*.timer "$PACKAGE_DIR/systemd/" 2>/dev/null || true
@@ -210,16 +213,16 @@ chmod +x %{buildroot}/usr/bin/tires-setup-timer.sh
 ldconfig || :
 systemctl daemon-reload || :
 
-%preun
-if [ \$1 -eq 0 ]; then
-    systemctl stop tires.timer || :
-    systemctl disable tires.timer || :
-fi
-
 %postun
 ldconfig || :
 if [ \$1 -eq 1 ]; then
     systemctl try-restart tires.timer || :
+fi
+
+%preun
+if [ \$1 -eq 0 ]; then
+    systemctl stop tires.timer || :
+    systemctl disable tires.timer || :
 fi
 
 %files

@@ -1,6 +1,7 @@
 using Tires.Primitives;
 using Microsoft.Extensions.Logging;
 using Tires.Config;
+using System.Buffers;
 
 namespace Tires.Storage;
 
@@ -24,33 +25,37 @@ public class StorageScanner : IStorageScanner
 
 	public List<FileEntry> GetSortedFiles()
 	{
-		var files = GetAllFilesAsync().Result;
-		return files.OrderBy(f => f.Size).ToList();
+		var files = GetAllFilesParallel();
+		var sorted = files.OrderBy(f => f.Size).ToList();
+		return sorted;
 	}
 
-	private async Task<List<FileEntry>> GetAllFilesAsync()
+	private List<FileEntry> GetAllFilesParallel()
 	{
 		_logger.LogInformation("Storage scan started");
 
-		var tasks = _tiers
-			.Select((tier, index) =>
-			{
-				var scanner = new TierScanner(_logger, index, tier._path);
-				var result = scanner.Scan();
-				return result;
-			})
-			.ToList();
+		var results = new List<FileEntry>[_tiers.Count];
+		var sizeSums = new long[_tiers.Count];
 
-		var results = await Task.WhenAll(tasks);
-		_sizes = results
-		.Select(x => x.Sum(f => f.Size))
-		.ToArray();
+		Parallel.For(0, _tiers.Count, i =>
+		{
+			var tier = _tiers[i];
+			var scanner = new TierScanner(_logger, i, tier._path);
+			var tierFiles = scanner.Scan();
+			results[i] = tierFiles;
+			sizeSums[i] = tierFiles.Sum(f => f.Size);
+		});
 
-		var all = results.SelectMany(x => x).ToList();
+		_sizes = sizeSums;
+
+		var totalFiles = results.Sum(r => r.Count);
+		var all = new List<FileEntry>(totalFiles);
+		foreach (var r in results)
+			all.AddRange(r);
+
 		_logger.LogInformation("Total files found: {FileCount}", all.Count);
 		for (int i = 0; i < _tiers.Count; i++)
 			_logger.LogDebug("Tier {TierIndex} size: {Size} bytes", i, Sizes[i]);
-
 
 		return all;
 	}

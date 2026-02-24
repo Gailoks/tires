@@ -18,6 +18,7 @@ public class ConfigLoader : IConfigLoader
             IterationLimit = root.GetProperty("IterationLimit").GetInt32(),
             LogLevel = ParseLogLevel(root.GetProperty("LogLevel").GetString() ?? "Information"),
             TemporaryPath = root.GetProperty("TemporaryPath").GetString() ?? "tmp",
+            LogPath = root.TryGetProperty("LogPath", out var lp) ? lp.GetString() ?? "/var/log/tires/tires.log" : "/var/log/tires/tires.log",
             RunInterval = root.TryGetProperty("RunInterval", out var ri) ? ri.GetString() ?? "hourly" : "hourly",
             ProcessPriority = root.TryGetProperty("ProcessPriority", out var pp) ? pp.GetInt32() : 2
         };
@@ -56,21 +57,6 @@ public class ConfigLoader : IConfigLoader
             }
         }
         config.FolderRules = rules.Count > 0 ? rules : null;
-
-        Console.WriteLine("Number of tiers: {0}", config.Tiers.Count);
-        Console.WriteLine("Iteration Limit: {0}", config.IterationLimit);
-        Console.WriteLine("Log level from config: {0}", config.LogLevel);
-        Console.WriteLine("Temporary path from config: {0}", config.TemporaryPath);
-        Console.WriteLine("Run interval from config: {0}", config.RunInterval);
-        Console.WriteLine("Process priority from config: {0}", config.ProcessPriority);
-
-        if (config.FolderRules != null)
-        {
-            foreach (var folderRule in config.FolderRules)
-            {
-                Console.WriteLine($"Folder rule: {folderRule.PathPrefix} (priority: {folderRule.Priority}, rule: {folderRule.RuleType})");
-            }
-        }
 
         return config;
     }

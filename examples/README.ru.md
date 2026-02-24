@@ -6,6 +6,37 @@
 
 ---
 
+## Краткая справка
+
+### Полный шаблон конфигурации
+
+```json
+{
+    "IterationLimit": 20,
+    "LogLevel": "Information",
+    "LogPath": "/var/log/tires/tires.log",
+    "TemporaryPath": "tmp",
+    "RunInterval": "hourly",
+    "ProcessPriority": 2,
+    "Tiers": [
+        {"target": 90, "path": "/mnt/ssd"},
+        {"target": 100, "path": "/mnt/hdd"}
+    ],
+    "FolderRules": [
+        {"PathPrefix": "important", "Priority": 100, "RuleType": "Ignore"}
+    ]
+}
+```
+
+### Ключевые особенности
+
+- **Сохранение файлов**: Права, владелец, временные метки и жёсткие ссылки сохраняются при перемещении
+- **Безопасность**: Служба systemd включает NoNewPrivileges, ProtectSystem, ProtectHome
+- **Нет внешних зависимостей**: libMono.Unix.so включён во все пакеты
+- **Тестирование с MockCapacity**: Тестирование без реальных ограничений диска с помощью `MockCapacity`
+
+---
+
 ## Как работают правила
 
 Файлы сортируются по **баллам** и распределяются по уровням по порядку:

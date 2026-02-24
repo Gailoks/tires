@@ -1,13 +1,15 @@
 using Microsoft.Extensions.Logging;
 using Tires.Primitives;
 using Tires.Config;
+using Tires.Rules;
+
 namespace Tires.Storage;
 
 public class StoragePlanner : IStoragePlanner
 {
 	private readonly ILogger<StoragePlanner> _logger;
-	private List<Tier> _tiers;
-	private List<FolderPlan> _folderPlans;
+	private readonly List<Tier> _tiers;
+	private readonly List<FolderPlan> _folderPlans;
 	public long[] Sizes { get; set; }
 
 	public StoragePlanner(ILogger<StoragePlanner> logger, Configuration configuration, List<FolderPlan> folderPlans)
@@ -24,17 +26,12 @@ public class StoragePlanner : IStoragePlanner
 	{
 		_logger.LogInformation("File distribution started");
 
-		// Step 1: Separate excluded files (IgnoreRule) from movable files
 		var (excludedFiles, movableFiles) = SeparateExcludedFiles(files);
 
 		_logger.LogInformation("Files: {Total} total, {Excluded} excluded, {Movable} movable",
 			files.Count, excludedFiles.Count, movableFiles.Count);
 
-		// Step 2: Sort movable files by rules
 		var sortedMovable = ApplySortingRules(movableFiles);
-
-		// Step 3: Calculate distribution boundaries based on available space
-		// This also reorganizes files so each tier gets consecutive ranges
 		var (reorganizedFiles, boundaries) = CalculateBoundaries(sortedMovable);
 
 		_logger.LogInformation("File distribution completed");
@@ -43,19 +40,16 @@ public class StoragePlanner : IStoragePlanner
 
 	private (List<FileEntry> Excluded, List<FileEntry> Movable) SeparateExcludedFiles(List<FileEntry> files)
 	{
-		var excluded = new List<FileEntry>();
-		var movable = new List<FileEntry>();
-
 		if (_folderPlans.Count == 0)
-			return (excluded, files);
+			return (new List<FileEntry>(), files);
 
+		var excluded = new List<FileEntry>();
+		var movable = new List<FileEntry>(files.Count);
 		var excludedIndices = new HashSet<int>();
 
-		// Find all files that match IgnoreRule (exclusion rules)
-		foreach (var plan in _folderPlans.OrderByDescending(p => p.Priority))
+		foreach (var plan in _folderPlans)
 		{
-			// Check if this is an IgnoreRule (exclusion rule)
-			if (plan.Rule.GetType().Name == "IgnoreRule")
+			if (plan.Rule is IgnoreRule)
 			{
 				for (int i = 0; i < files.Count; i++)
 				{
@@ -73,7 +67,6 @@ public class StoragePlanner : IStoragePlanner
 			}
 		}
 
-		// All non-excluded files are movable
 		for (int i = 0; i < files.Count; i++)
 		{
 			if (!excludedIndices.Contains(i))
@@ -86,53 +79,56 @@ public class StoragePlanner : IStoragePlanner
 	private List<FileEntry> ApplySortingRules(List<FileEntry> files)
 	{
 		if (_folderPlans.Count == 0)
-			return files.OrderBy(f => f.Size).ToList();
+		{
+			var sorted = new List<FileEntry>(files);
+			sorted.Sort((a, b) => a.Size.CompareTo(b.Size));
+			return sorted;
+		}
 
-		var result = new List<FileEntry>();
+		var result = new List<FileEntry>(files.Count);
 		var matchedIndices = new HashSet<int>();
 
-		// Process each folder rule in priority order (only non-IgnoreRule)
-		foreach (var plan in _folderPlans.OrderByDescending(p => p.Priority))
+		foreach (var plan in _folderPlans)
 		{
-			// Skip IgnoreRule for sorting (it's only for exclusion)
-			if (plan.Rule.GetType().Name == "IgnoreRule")
+			if (plan.Rule is IgnoreRule)
 				continue;
 
-			var matched = files
-				.Select((f, i) => (File: f, Index: i, Score: CalculateScore(plan, f)))
-				.Where(x => !matchedIndices.Contains(x.Index) && MatchesFolder(plan, x.File))
-				.OrderBy(x => x.Score)
-				.ToList();
-
-			foreach (var m in matched)
+			for (int i = 0; i < files.Count; i++)
 			{
-				result.Add(m.File);
-				matchedIndices.Add(m.Index);
+				if (matchedIndices.Contains(i))
+					continue;
+
+				if (MatchesFolder(plan, files[i]))
+				{
+					result.Add(files[i]);
+					matchedIndices.Add(i);
+				}
 			}
 		}
 
-		// Add remaining files with default rule (size ascending)
-		var unmatched = files
-			.Select((f, i) => (File: f, Index: i))
-			.Where(x => !matchedIndices.Contains(x.Index))
-			.OrderBy(x => x.File.Size)
-			.Select(x => x.File)
-			.ToList();
+		result.Sort((a, b) => a.Size.CompareTo(b.Size));
 
-		result.AddRange(unmatched);
+		var unmatched = new List<FileEntry>();
+		for (int i = 0; i < files.Count; i++)
+		{
+			if (!matchedIndices.Contains(i))
+				unmatched.Add(files[i]);
+		}
+		unmatched.Sort((a, b) => a.Size.CompareTo(b.Size));
+
+		result.InsertRange(result.Count, unmatched);
 		return result;
 	}
 
 	private (List<FileEntry> ReorganizedFiles, List<int> Boundaries) CalculateBoundaries(List<FileEntry> sortedFiles)
 	{
-		List<int> boundaries = new();
+		var boundaries = new List<int>(_tiers.Count);
 		var assignedIndices = new HashSet<int>();
-		var tierFiles = new List<List<FileEntry>>();
+		var tierFiles = new List<List<FileEntry>>(_tiers.Count);
 
 		_logger.LogDebug("Calculating boundaries for {TierCount} tiers with {FileCount} movable files",
 			_tiers.Count, sortedFiles.Count);
 
-		// For each tier (except last), calculate which files fit based on priority order
 		for (int a = 0; a < _tiers.Count - 1; a++)
 		{
 			var tier = _tiers[a];
@@ -144,8 +140,6 @@ public class StoragePlanner : IStoragePlanner
 
 			long cumulative = 0;
 
-			// Try to fit files in priority order (greedy bin-packing)
-			// Continue through ALL files, not just consecutive ones
 			for (int i = 0; i < sortedFiles.Count; i++)
 			{
 				if (assignedIndices.Contains(i))
@@ -164,7 +158,6 @@ public class StoragePlanner : IStoragePlanner
 				a, tierFileList.Count, cumulative);
 		}
 
-		// Last tier gets all remaining files (overflow)
 		var lastTierFiles = new List<FileEntry>();
 		for (int i = 0; i < sortedFiles.Count; i++)
 		{
@@ -176,14 +169,12 @@ public class StoragePlanner : IStoragePlanner
 		_logger.LogDebug("Tier {TierIndex} (last): assigned {Count} files",
 			_tiers.Count - 1, lastTierFiles.Count);
 
-		// Reorganize files: concatenate all tier files in order
-		var reorganizedFiles = new List<FileEntry>();
+		var reorganizedFiles = new List<FileEntry>(sortedFiles.Count);
 		int cumulativeCount = 0;
 		foreach (var tierFileList in tierFiles)
 		{
 			reorganizedFiles.AddRange(tierFileList);
 			cumulativeCount += tierFileList.Count;
-			// Boundary is the index of the last file for this tier
 			boundaries.Add(cumulativeCount - 1);
 		}
 
@@ -194,8 +185,6 @@ public class StoragePlanner : IStoragePlanner
 	{
 		foreach (var path in file.Paths)
 		{
-			// Check if the path contains the folder prefix
-			// This works for both absolute and relative paths
 			if (path.Contains(plan.PathPrefix, StringComparison.OrdinalIgnoreCase))
 				return true;
 		}

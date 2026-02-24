@@ -1,6 +1,6 @@
 using Tires.Primitives;
 using Microsoft.Extensions.Logging;
-using Mono.Unix.Native;   // Stat, Syscall, FilePermissions, Timespec
+using Mono.Unix.Native;
 
 namespace Tires.Storage;
 
@@ -18,7 +18,7 @@ public class TierScanner : ITierScanner
 		_path = path;
 	}
 
-	public async Task<List<FileEntry>> Scan()
+	public List<FileEntry> Scan()
 	{
 		var stack = new Stack<string>();
 		stack.Push(_path);
@@ -27,13 +27,13 @@ public class TierScanner : ITierScanner
 		{
 			var dir = stack.Pop();
 
-			IEnumerable<string> dirs;
-			IEnumerable<string> files;
+			string[] dirs;
+			string[] files;
 
 			try
 			{
-				dirs = Directory.EnumerateDirectories(dir);
-				files = Directory.EnumerateFiles(dir);
+				dirs = Directory.GetDirectories(dir);
+				files = Directory.GetFiles(dir);
 			}
 			catch (Exception ex)
 			{
@@ -41,28 +41,26 @@ public class TierScanner : ITierScanner
 				continue;
 			}
 
-			foreach (var d in dirs)
+			for (int i = 0; i < dirs.Length; i++)
 			{
 				try
 				{
-					var attr = File.GetAttributes(d);
+					var attr = File.GetAttributes(dirs[i]);
 					if (!attr.HasFlag(FileAttributes.ReparsePoint))
-						stack.Push(d);
+						stack.Push(dirs[i]);
 				}
-				catch { /* ignore */ }
+				catch { }
 			}
 
-			foreach (var f in files)
-				await AddFile(f);
+			for (int i = 0; i < files.Length; i++)
+				AddFile(files[i]);
 		}
 
-		return _files.Values.ToList();
+		return new List<FileEntry>(_files.Values);
 	}
 
-	private async Task AddFile(string path)
+	private void AddFile(string path)
 	{
-		await Task.Yield();
-
 		try
 		{
 			if (Syscall.stat(path, out var st) != 0)
@@ -71,7 +69,6 @@ public class TierScanner : ITierScanner
 				return;
 			}
 
-			// Only regular files are of interest.
 			var type = st.st_mode & FilePermissions.S_IFMT;
 			if (type != FilePermissions.S_IFREG)
 			{
@@ -83,7 +80,7 @@ public class TierScanner : ITierScanner
 			long size = st.st_size;
 			int uid = (int)st.st_uid;
 			int gid = (int)st.st_gid;
-			FilePermissions mode = st.st_mode;          // rwxrwxrwx …
+			FilePermissions mode = st.st_mode;
 			var atime = st.st_atim;
 			var mtime = st.st_mtim;
 			var ctime = st.st_ctim;
@@ -101,7 +98,7 @@ public class TierScanner : ITierScanner
 				TierIndex: _tierIndex,
 				OwnerUid: uid,
 				GroupGid: gid,
-				Mode: (FilePermissions)mode,
+				Mode: mode,
 				AccessTime: atime,
 				ModifyTime: mtime,
 				ChangeTime: ctime

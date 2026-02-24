@@ -13,12 +13,14 @@ public class Configuration
         TemporaryPath = "tmp";
         RunInterval = "hourly";
         ProcessPriority = 2; // Idle by default (runs when CPU is idle)
+        LogPath = "/var/log/tires/tires.log";
     }
-    
+
     public List<TierConfig> Tiers { get; set; }
     public int IterationLimit { get; set; }
     public LogLevel LogLevel { get; set; }
     public string TemporaryPath { get; set; }
+    public string LogPath { get; set; }
     public List<FolderPlanConfig>? FolderRules { get; set; }
     
     /// <summary>

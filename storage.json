@@ -1,6 +1,7 @@
 {
 	"IterationLimit": 20,
 	"LogLevel": "Debug",
+	"LogPath": "/var/log/tires/tires.log",
 	"TemporaryPath": "tmp",
 	"RunInterval": "hourly",
 	"ProcessPriority": 2,

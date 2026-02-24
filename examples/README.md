@@ -6,6 +6,37 @@ Detailed configuration examples for common use cases.
 
 ---
 
+## Quick Reference
+
+### Complete Configuration Template
+
+```json
+{
+    "IterationLimit": 20,
+    "LogLevel": "Information",
+    "LogPath": "/var/log/tires/tires.log",
+    "TemporaryPath": "tmp",
+    "RunInterval": "hourly",
+    "ProcessPriority": 2,
+    "Tiers": [
+        {"target": 90, "path": "/mnt/ssd"},
+        {"target": 100, "path": "/mnt/hdd"}
+    ],
+    "FolderRules": [
+        {"PathPrefix": "important", "Priority": 100, "RuleType": "Ignore"}
+    ]
+}
+```
+
+### Key Features
+
+- **File preservation**: Permissions, ownership, timestamps, and hardlinks are preserved during moves
+- **Security hardening**: Systemd service includes NoNewPrivileges, ProtectSystem, ProtectHome
+- **No external dependencies**: libMono.Unix.so is bundled in all packages
+- **Mock capacity testing**: Test without actual disk limits using `MockCapacity`
+
+---
+
 ## How Rules Work
 
 Files are sorted by **score** and assigned to tiers in order:

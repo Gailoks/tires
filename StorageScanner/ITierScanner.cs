@@ -3,7 +3,5 @@ namespace Tires.Storage;
 
 public interface ITierScanner
 {
-	
-    public Task<List<FileEntry>> Scan();
-
+    public List<FileEntry> Scan();
 }

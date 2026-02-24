@@ -2,51 +2,41 @@
 
 ## Quick Install (Manual)
 
-### 1. Install Mono.Unix dependency
+### From tar.gz (Recommended)
 
-**Debian/Ubuntu:**
 ```bash
-sudo apt-get update
-sudo apt-get install -y libmono-2.0-1 libmono-posix-4.0-1cilib
-```
-
-**RHEL/CentOS/Fedora:**
-```bash
-sudo dnf install mono-core mono-posix
-```
-
-### 2. Install Tires
-
-**From tar.gz:**
-```bash
+# Extract archive
 tar -xzf tires-*-linux-x64.tar.gz
 cd tires-*-linux-x64
 
-# Copy files
-sudo cp tires /usr/local/bin/
-sudo cp libMono.Unix.so /usr/lib/ 2>/dev/null || true
-sudo ldconfig 2>/dev/null || true
-
-# Optional: Install systemd files
-sudo cp systemd/*.service /lib/systemd/system/
-sudo cp systemd/*.timer /lib/systemd/system/
-sudo cp systemd/tires-setup-timer.sh /usr/local/bin/
-sudo chmod +x /usr/local/bin/tires-setup-timer.sh
-sudo systemctl daemon-reload
+# Run installer (requires root)
+sudo ./install.sh
 ```
 
-**From .deb:**
+The installer will:
+- Copy binary to `/usr/bin/tires`
+- Copy libMono.Unix.so to `/usr/lib/`
+- Run `ldconfig` to update library cache
+- Install systemd files (optional)
+
+### From .deb (Debian/Ubuntu)
+
 ```bash
 sudo dpkg -i tires_*.deb
-sudo apt-get install -f  # Install dependencies
+sudo apt-get install -f  # Install dependencies if needed
 ```
 
-**From .rpm:**
+The package includes libMono.Unix.so and automatically runs `ldconfig`.
+
+### From .rpm (RHEL/CentOS/Fedora)
+
 ```bash
 sudo rpm -ivh tires-*.rpm
 ```
 
-### 3. Configure
+The package includes libMono.Unix.so and automatically runs `ldconfig`.
+
+### Configure
 
 ```bash
 # Create config directory
@@ -184,14 +174,10 @@ Total files found: 0
 
 ## Uninstall
 
-**Manual:**
+**From tar.gz:**
 ```bash
-sudo rm /usr/local/bin/tires
-sudo rm /usr/lib/libMono.Unix.so
-sudo rm /lib/systemd/system/tires.service
-sudo rm /lib/systemd/system/tires.timer
-sudo systemctl daemon-reload
-sudo rm -rf /etc/tires
+cd tires-*-linux-x64
+sudo ./uninstall.sh
 ```
 
 **From .deb:**

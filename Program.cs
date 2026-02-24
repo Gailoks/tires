@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Tires.Config;
 using Tires.Storage;
 using System.Diagnostics;
+using Tires;
 
 var configPath = args.Length > 0 ? args[0] : "storage.json";
 var configLoader = new ConfigLoader();
@@ -12,13 +13,18 @@ var folderPlans = configLoader.BuildFolderPlans(storageConfig);
 var serviceProvider = new ServiceCollection()
     .AddLogging(builder =>
     {
+        builder.SetMinimumLevel(storageConfig.LogLevel);
+        
+        // Console output
         builder.AddSimpleConsole(options =>
         {
             options.IncludeScopes = true;
             options.SingleLine = true;
             options.TimestampFormat = "yyyy-MM-dd HH:mm:ss ";
         });
-        builder.SetMinimumLevel(storageConfig.LogLevel);
+        
+        // File output
+        builder.AddSimpleFileLogger(storageConfig.LogPath, storageConfig.LogLevel);
     })
     .AddSingleton(storageConfig)
     .AddSingleton<IStorageScanner, StorageScanner>()

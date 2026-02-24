@@ -1,61 +1,87 @@
-#!/bin/bash
-# Tires installation script with Mono.Unix dependency
+#!/usr/bin/env bash
+#===============================================================================
+# tires-install.sh - Install script for tar.gz package
+#===============================================================================
 
-set -e
+set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-INSTALL_PREFIX="${INSTALL_PREFIX:-/usr}"
+cd "$SCRIPT_DIR"
 
-echo "🚗 Installing Tires..."
+echo "╔════════════════════════════════════════╗"
+echo "║  tires - Installation Script           ║"
+echo "╚════════════════════════════════════════╝"
+echo ""
 
-# Create directories
-sudo mkdir -p "$INSTALL_PREFIX/bin"
-sudo mkdir -p "$INSTALL_PREFIX/lib"
-sudo mkdir -p "$INSTALL_PREFIX/share/doc/tires"
-sudo mkdir -p "/etc/tires"
-sudo mkdir -p "/lib/systemd/system"
+# Detect installation prefix
+PREFIX="${PREFIX:-/usr}"
+BINDIR="${PREFIX}/bin"
+LIBDIR="${PREFIX}/lib"
+SYSCONFDIR="${SYSCONFDIR:-/etc}"
+SYSTEMD_DIR="/lib/systemd/system"
 
-# Copy binary
-echo "📦 Copying binary..."
-sudo cp "$SCRIPT_DIR/tires" "$INSTALL_PREFIX/bin/"
-sudo chmod +x "$INSTALL_PREFIX/bin/tires"
+echo "Installation paths:"
+echo "  Binary:       $BINDIR"
+echo "  Library:      $LIBDIR"
+echo "  Config:       $SYSCONFDIR/tires"
+echo "  Systemd:      $SYSTEMD_DIR"
+echo ""
 
-# Copy Mono.Unix library
-echo "📦 Copying Mono.Unix library..."
-if [ -f "$SCRIPT_DIR/libMono.Unix.so" ]; then
-    sudo cp "$SCRIPT_DIR/libMono.Unix.so" "$INSTALL_PREFIX/lib/"
-    sudo ldconfig 2>/dev/null || true
-    echo "✅ Mono.Unix installed"
+# Check for root/sudo
+if [[ $EUID -ne 0 ]]; then
+    echo -e "\033[0;31m❌ This script must be run as root (or with sudo)\033[0m"
+    exit 1
 fi
 
-# Copy docs
-echo "📦 Copying documentation..."
-sudo cp "$SCRIPT_DIR/README.md" "$INSTALL_PREFIX/share/doc/tires/" 2>/dev/null || true
-sudo cp "$SCRIPT_DIR/storage.json" "$INSTALL_PREFIX/share/doc/tires/storage.json.example" 2>/dev/null || true
+# Create directories
+echo "📁 Creating directories..."
+mkdir -p "$BINDIR"
+mkdir -p "$LIBDIR"
+mkdir -p "$SYSCONFDIR/tires"
+mkdir -p "$SYSTEMD_DIR"
 
-# Copy systemd files
-echo "📦 Copying systemd files..."
-sudo cp "$SCRIPT_DIR/systemd/tires.service" "/lib/systemd/system/" 2>/dev/null || true
-sudo cp "$SCRIPT_DIR/systemd/tires.timer" "/lib/systemd/system/" 2>/dev/null || true
-sudo cp "$SCRIPT_DIR/systemd/tires-setup-timer.sh" "$INSTALL_PREFIX/bin/" 2>/dev/null || true
-sudo chmod +x "$INSTALL_PREFIX/bin/tires-setup-timer.sh" 2>/dev/null || true
-sudo systemctl daemon-reload 2>/dev/null || true
+# Install binary
+echo "📦 Installing binary..."
+cp "$SCRIPT_DIR/tires" "$BINDIR/tires"
+chmod +x "$BINDIR/tires"
 
-# Verify installation
+# Install Mono.Unix library (REQUIRED for POSIX file operations)
+echo "📦 Installing libMono.Unix.so..."
+cp "$SCRIPT_DIR/libMono.Unix.so" "$LIBDIR/libMono.Unix.so"
+chmod 644 "$LIBDIR/libMono.Unix.so"
+
+# Update library cache
+echo "🔄 Updating library cache..."
+ldconfig
+
+# Install config example
+echo "📝 Installing configuration example..."
+if [[ -f "$SCRIPT_DIR/storage.json" ]]; then
+    cp "$SCRIPT_DIR/storage.json" "$SYSCONFDIR/tires/storage.json.example"
+fi
+
+# Install systemd files
+echo "⚙️  Installing systemd files..."
+if [[ -d "$SCRIPT_DIR/systemd" ]]; then
+    cp "$SCRIPT_DIR/systemd/tires.service" "$SYSTEMD_DIR/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/systemd/tires.timer" "$SYSTEMD_DIR/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/systemd/tires-setup-timer.sh" "$BINDIR/" 2>/dev/null || true
+    chmod +x "$BINDIR/tires-setup-timer.sh" 2>/dev/null || true
+    systemctl daemon-reload 2>/dev/null || true
+fi
+
 echo ""
-echo "✅ Tires installed successfully!"
+echo -e "\033[0;32m✅ Installation completed!\033[0m"
 echo ""
-echo "Usage:"
-echo "  tires /path/to/storage.json"
+echo "Next steps:"
+echo "  1. Create configuration:"
+echo "     sudo cp $SYSCONFDIR/tires/storage.json.example $SYSCONFDIR/tires/storage.json"
+echo "     sudo nano $SYSCONFDIR/tires/storage.json"
 echo ""
-echo "Configure timer schedule:"
-echo "  1. Edit RunInterval in /etc/tires/storage.json"
-echo "  2. Run: sudo tires-setup-timer.sh"
+echo "  2. Run manually:"
+echo "     sudo tires $SYSCONFDIR/tires/storage.json"
 echo ""
-echo "Enable automatic runs:"
-echo "  sudo systemctl enable --now tires.timer"
-echo ""
-echo "Check status:"
-echo "  systemctl status tires.timer"
-echo "  systemctl list-timers tires.timer"
+echo "  3. Or enable automatic timer:"
+echo "     sudo tires-setup-timer.sh"
+echo "     sudo systemctl enable --now tires.timer"
 echo ""

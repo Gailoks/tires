@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Tires.Config;
 using Mono.Unix.Native;
 using Tires.Primitives;
+
 namespace Tires.Storage;
 
 public class TierMover : ITierMover
@@ -23,6 +24,7 @@ public class TierMover : ITierMover
 	}
 
 	private bool CanFit(Tier tier, FileEntry file) => file.Size <= tier.Free;
+
 	public bool MoveFile(FileEntry file, int targetTier)
 	{
 		int sourceTier = file.TierIndex;
@@ -47,27 +49,19 @@ public class TierMover : ITierMover
 			Directory.CreateDirectory(tmpDir);
 			string tmpFile = Path.Combine(tmpDir, Guid.NewGuid().ToString() + ".tmp");
 
-			// Copy file content
 			File.Copy(srcMain, tmpFile, overwrite: true);
-
-			// Move to destination FIRST
 			File.Move(tmpFile, dstMainPath, true);
 
-			// THEN preserve ownership and permissions (must be after move!)
 			if (file.Paths.Count > 0)
 			{
-				// Set ownership (uid/gid)
 				Syscall.chown(dstMainPath, file.OwnerUid, file.GroupGid);
-				// Set permissions (mode)
 				Syscall.chmod(dstMainPath, file.Mode);
-				// Set timestamps (access and modify time) - convert Timespec to Timeval
 				Syscall.utimes(dstMainPath, new[] {
 					new Timeval() { tv_sec = file.AccessTime.tv_sec, tv_usec = file.AccessTime.tv_nsec / 1000 },
 					new Timeval() { tv_sec = file.ModifyTime.tv_sec, tv_usec = file.ModifyTime.tv_nsec / 1000 }
 				});
 			}
 
-			// Recreate hardlinks for additional paths
 			for (int i = 1; i < file.Paths.Count; i++)
 			{
 				string originalRel = Path.GetRelativePath(src._path, file.Paths[i]);
@@ -76,7 +70,6 @@ public class TierMover : ITierMover
 				Syscall.link(dstMainPath, dstPath);
 			}
 
-			// Remove old files
 			foreach (var oldPath in file.Paths)
 				if (File.Exists(oldPath))
 					File.Delete(oldPath);
@@ -87,8 +80,6 @@ public class TierMover : ITierMover
 			_logger.LogInformation(
 				"Moved {FileCount} files (inode: {Inode}) from Tier {SourceTier} to Tier {TargetTier}",
 				file.Paths.Count, file.Inode, sourceTier, targetTier);
-			_logger.LogDebug("  Paths: {Paths}", string.Join(", ", file.Paths));
-			_logger.LogDebug("  Mode: {Mode}, Owner: {Owner}, Group: {Group}", file.Mode, file.OwnerUid, file.GroupGid);
 
 			return true;
 		}
@@ -98,12 +89,9 @@ public class TierMover : ITierMover
 				ex,
 				"Failed to move {FileCount} files (inode: {Inode}) from Tier {SourceTier} to Tier {TargetTier}",
 				file.Paths.Count, file.Inode, sourceTier, targetTier);
-			_logger.LogDebug("  Paths: {Paths}", string.Join(", ", file.Paths));
 			return false;
 		}
 	}
-
-
 
 	public void ApplyPlan(List<FileEntry> fileEntries, List<int> boundaries)
 	{
@@ -156,5 +144,4 @@ public class TierMover : ITierMover
 		if (iterations >= _iterationLimit)
 			_logger.LogWarning("Iteration limit ({Limit}) reached, some files may not have been moved", _iterationLimit);
 	}
-
 }
