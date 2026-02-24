@@ -13,19 +13,19 @@ env:
   DOTNET_VERSION: '8.0.x'
 
 jobs:
-  build:
-    name: Build Native AOT
+  build-and-package:
+    name: Build, Test & Package
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.get_version.outputs.version }}
     steps:
     - uses: actions/checkout@v4
-    
+
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-    
+
     - name: Get version
       id: get_version
       run: |
@@ -36,106 +36,50 @@ jobs:
         fi
         echo "version=$VERSION" >> $GITHUB_OUTPUT
         echo "Version: $VERSION"
-    
+
     - name: Restore dependencies
       run: dotnet restore
-    
+
     - name: Build
       run: dotnet build --no-restore -c Release
-    
+
     - name: Test
       run: ./Tests/tires-test-runner.sh
-      # All 12 tests run without sudo (using MockCapacity for space-limited tests)
-    
+
     - name: Publish Native AOT
       run: |
         dotnet publish -c Release -r linux-x64 --self-contained \
           -p:PublishAot=true -p:StripSymbols=true \
           -o ./publish/linux-x64
-    
+
     - name: Verify binary
       run: |
         ls -lh ./publish/linux-x64/
         file ./publish/linux-x64/tires
         ./publish/linux-x64/tires --help || true
-    
-    - name: Upload binary artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tires-linux-x64
-        path: ./publish/linux-x64/
-        retention-days: 7
 
-  package-tar:
-    name: Create tar.gz Package
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download binary
-      uses: actions/download-artifact@v4
-      with:
-        name: tires-linux-x64
-        path: ./package/tires
-
-    - name: Copy additional files
+    # ========== tar.gz Package ==========
+    - name: Create tar.gz Package
       run: |
-        cp README.md ./package/tires/ 2>/dev/null || true
-        cp storage.json ./package/tires/ 2>/dev/null || true
-        mkdir -p ./package/tires/systemd
-        cp packaging/systemd/*.service ./package/tires/systemd/ 2>/dev/null || true
-        cp packaging/systemd/*.timer ./package/tires/systemd/ 2>/dev/null || true
-
-    - name: Create package
-      run: |
-        VERSION=${{ needs.build.outputs.version }}
+        VERSION=${{ steps.get_version.outputs.version }}
         PACKAGE_DIR="tires-$VERSION-linux-x64"
         mkdir -p ./release/$PACKAGE_DIR
 
-        cp ./package/tires/tires ./release/$PACKAGE_DIR/
-        cp ./package/tires/libMono.Unix.so ./release/$PACKAGE_DIR/
+        cp ./publish/linux-x64/tires ./release/$PACKAGE_DIR/
+        cp ./publish/linux-x64/libMono.Unix.so ./release/$PACKAGE_DIR/
         cp README.md ./release/$PACKAGE_DIR/
         cp storage.json ./release/$PACKAGE_DIR/ 2>/dev/null || true
         mkdir -p ./release/$PACKAGE_DIR/systemd
-        cp ./package/tires/systemd/*.service ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
-        cp ./package/tires/systemd/*.timer ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.service ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
+        cp packaging/systemd/*.timer ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
 
         cd ./release
         tar -czf "$PACKAGE_DIR.tar.gz" "$PACKAGE_DIR"
-    
-    - name: Upload tar.gz artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tires-tar-gz
-        path: ./release/*.tar.gz
-        retention-days: 7
 
-  package-deb:
-    name: Create .deb Package
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-    - uses: actions/checkout@v4
-    
-    - name: Download binary
-      uses: actions/download-artifact@v4
-      with:
-        name: tires-linux-x64
-        path: ./deb-build/tires
-
-    - name: Copy additional files
+    # ========== .deb Package ==========
+    - name: Create .deb Package
       run: |
-        cp README.md ./deb-build/tires/ 2>/dev/null || true
-        cp storage.json ./deb-build/tires/ 2>/dev/null || true
-        mkdir -p ./deb-build/tires/systemd
-        cp packaging/systemd/*.service ./deb-build/tires/systemd/ 2>/dev/null || true
-        cp packaging/systemd/*.timer ./deb-build/tires/systemd/ 2>/dev/null || true
-
-    - name: Create .deb package
-      run: |
-        VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for Debian: replace - with +, remove invalid chars
+        VERSION=${{ steps.get_version.outputs.version }}
         DEB_VERSION=$(echo "$VERSION" | tr '-' '+' | sed 's/[^a-zA-Z0-9.:+~]/_/g')
         DEB_DIR="deb-build/tires_${DEB_VERSION}-1_amd64"
 
@@ -146,25 +90,20 @@ jobs:
         mkdir -p "$DEB_DIR/etc/tires"
         mkdir -p "$DEB_DIR/lib/systemd/system"
 
-        # Copy binary
-        cp ./deb-build/tires/tires "$DEB_DIR/usr/bin/"
+        cp ./publish/linux-x64/tires "$DEB_DIR/usr/bin/"
         chmod +x "$DEB_DIR/usr/bin/tires"
 
-        # Copy Mono.Unix library (REQUIRED!)
-        cp ./deb-build/tires/libMono.Unix.so "$DEB_DIR/usr/lib/" || {
+        cp ./publish/linux-x64/libMono.Unix.so "$DEB_DIR/usr/lib/" || {
             echo "::error::libMono.Unix.so not found!"
             exit 1
         }
 
-        # Copy docs
         cp README.md "$DEB_DIR/usr/share/doc/tires/" 2>/dev/null || true
         cp storage.json "$DEB_DIR/etc/tires/storage.json.example" 2>/dev/null || true
 
-        # Copy systemd files
-        cp ./deb-build/tires/systemd/tires.service "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
-        cp ./deb-build/tires/systemd/tires.timer "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
+        cp packaging/systemd/tires.service "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
+        cp packaging/systemd/tires.timer "$DEB_DIR/lib/systemd/system/" 2>/dev/null || true
 
-        # Create control file with dependencies
         cat > "$DEB_DIR/DEBIAN/control" << EOF
         Package: tires
         Version: $DEB_VERSION
@@ -180,59 +119,27 @@ jobs:
          Includes libMono.Unix.so for POSIX compatibility.
         EOF
 
-        # Create postinst script
         cat > "$DEB_DIR/DEBIAN/postinst" << 'EOF'
         #!/bin/bash
         set -e
         mkdir -p /etc/tires
-        # Update library cache
         ldconfig 2>/dev/null || true
-        # Reload systemd if available
         if command -v systemctl &> /dev/null; then
             systemctl daemon-reload || true
         fi
         EOF
         chmod +x "$DEB_DIR/DEBIAN/postinst"
 
-        # Build .deb
         cd ./deb-build
         dpkg-deb --build "tires_${DEB_VERSION}-1_amd64"
-    
-    - name: Upload .deb artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: tires-deb
-        path: ./deb-build/*.deb
-        retention-days: 7
 
-  package-rpm:
-    name: Create .rpm Package
-    runs-on: ubuntu-latest
-    needs: build
-    steps:
-    - uses: actions/checkout@v4
-    
+    # ========== .rpm Package ==========
     - name: Install rpmbuild
       run: sudo apt-get update && sudo apt-get install -y rpm
-    
-    - name: Download binary
-      uses: actions/download-artifact@v4
-      with:
-        name: tires-linux-x64
-        path: ./rpm-package
 
-    - name: Copy additional files
+    - name: Create .rpm Package
       run: |
-        cp README.md ./rpm-package/ 2>/dev/null || true
-        cp storage.json ./rpm-package/ 2>/dev/null || true
-        mkdir -p ./rpm-package/systemd
-        cp packaging/systemd/*.service ./rpm-package/systemd/ 2>/dev/null || true
-        cp packaging/systemd/*.timer ./rpm-package/systemd/ 2>/dev/null || true
-
-    - name: Create .rpm package
-      run: |
-        VERSION=${{ needs.build.outputs.version }}
-        # Sanitize version for RPM
+        VERSION=${{ steps.get_version.outputs.version }}
         RPM_VERSION=$(echo "$VERSION" | tr '-' '_' | sed 's/[^a-zA-Z0-9.~_+]/_/g')
         RPM_DIR="rpm-build"
 
@@ -242,13 +149,14 @@ jobs:
         mkdir -p "$RPM_DIR/RPMS"
         mkdir -p "$RPM_DIR/SRPMS"
 
-        # Create source tarball with proper directory structure
         mkdir -p "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
-        cp -r ./rpm-package/* "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/"
+        cp -r ./publish/linux-x64/* "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/"
+        cp README.md "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/"
+        cp storage.json "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/" 2>/dev/null || true
+        cp -r packaging/systemd "$RPM_DIR/SOURCES/tires-${RPM_VERSION}/" 2>/dev/null || true
         tar -czf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}.tar.gz" -C "$RPM_DIR/SOURCES" "tires-${RPM_VERSION}"
         rm -rf "$RPM_DIR/SOURCES/tires-${RPM_VERSION}"
 
-        # Create spec file
         cat > "$RPM_DIR/SPECS/tires.spec" << EOF
         Name: tires
         Version: $RPM_VERSION
@@ -263,7 +171,7 @@ jobs:
         %description
         Tires is a tiered storage manager that automatically moves files
         between storage tiers based on configurable rules.
-        
+
         Includes libMono.Unix.so for POSIX compatibility.
 
         %prep
@@ -304,64 +212,66 @@ jobs:
             systemctl try-restart tires.timer || :
         fi
         EOF
-        
-        # Build RPM
+
         rpmbuild --define "_topdir $(pwd)/$RPM_DIR" -bb "$RPM_DIR/SPECS/tires.spec"
-        
-        # Copy RPM to output
         find "$RPM_DIR/RPMS" -name "*.rpm" -exec cp {} ./ \;
-    
-    - name: Upload .rpm artifact
+
+    - name: Upload artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: tires-rpm
-        path: ./*.rpm
+        name: tires-packages
+        path: |
+          ./release/*.tar.gz
+          ./deb-build/*.deb
+          ./*.rpm
         retention-days: 7
 
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    needs: [build, package-tar, package-deb, package-rpm]
+    needs: build-and-package
     if: startsWith(github.ref, 'refs/tags/v')
     steps:
     - uses: actions/checkout@v4
-    
-    - name: Download all artifacts
+
+    - name: Download artifacts
       uses: actions/download-artifact@v4
       with:
-        pattern: tires-*
-        merge-multiple: true
+        name: tires-packages
         path: ./release-assets
-    
+
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         name: Release ${{ github.ref_name }}
         body: |
           ## Changes
-          
+
           See the [changelog](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
-          
+
           ## Installation
-          
+
           ### From tar.gz
           ```bash
           tar -xzf tires-*-linux-x64.tar.gz
           cd tires-*-linux-x64
           sudo cp tires /usr/local/bin/
           ```
-          
+
           ### From .deb
           ```bash
           sudo dpkg -i tires_*.deb
           sudo apt-get install -f
           ```
-          
+
           ### From .rpm
           ```bash
           sudo rpm -ivh tires-*.rpm
           ```
-        files: ./release-assets/*
+        files: |
+          ./release-assets/*.tar.gz
+          ./release-assets/*.deb
+          ./release-assets/*.rpm
         draft: true
         prerelease: false
       env:

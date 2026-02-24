@@ -1,10 +1,12 @@
 [Unit]
 Description=Run Tires - Tiered Storage Manager
-Documentation=https://github.com/tires/tires/blob/main/README.md
+Documentation=https://github.com/gailoks/tires/blob/main/README.md
 
 [Timer]
-# Run every hour by default
-# Customize this value in /etc/systemd/system/tires.timer.d/override.conf
+# Run interval is configured in /etc/tires/storage.json (RunInterval field)
+# Supported values: "minutely", "hourly", "daily", "weekly", "monthly"
+# or systemd calendar format (e.g., "*-*-* 02:00:00" for daily at 2 AM)
+# Default: hourly
 OnCalendar=hourly
 Persistent=true
 RandomizedDelaySec=300

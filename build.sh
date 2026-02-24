@@ -61,6 +61,7 @@ cp "$SCRIPT_DIR/packaging/INSTALL.md" "$PACKAGE_DIR/" 2>/dev/null || true
 mkdir -p "$PACKAGE_DIR/systemd"
 cp "$SCRIPT_DIR/packaging/systemd/"*.service "$PACKAGE_DIR/systemd/" 2>/dev/null || true
 cp "$SCRIPT_DIR/packaging/systemd/"*.timer "$PACKAGE_DIR/systemd/" 2>/dev/null || true
+cp "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" "$PACKAGE_DIR/systemd/" 2>/dev/null || true
 
 cd "$OUTPUT_DIR"
 tar -czf "tires-$VERSION-linux-x64.tar.gz" "tires-$VERSION-linux-x64"
@@ -94,6 +95,8 @@ if command -v dpkg-deb &> /dev/null; then
     # Copy systemd files
     cp "$SCRIPT_DIR/packaging/systemd/tires.service" "$DEB_PACKAGE_DIR/lib/systemd/system/" 2>/dev/null || true
     cp "$SCRIPT_DIR/packaging/systemd/tires.timer" "$DEB_PACKAGE_DIR/lib/systemd/system/" 2>/dev/null || true
+    cp "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" "$DEB_PACKAGE_DIR/usr/bin/" 2>/dev/null || true
+    chmod +x "$DEB_PACKAGE_DIR/usr/bin/tires-setup-timer.sh" 2>/dev/null || true
 
     # Create control file
     cat > "$DEB_PACKAGE_DIR/DEBIAN/control" << EOF
@@ -135,8 +138,9 @@ EOF
     chmod +x "$DEB_PACKAGE_DIR/DEBIAN/postrm"
 
     # Build .deb
-    cd ./deb-build
+    cd "$DEB_BUILD_DIR"
     dpkg-deb --build "tires_$VERSION-1_amd64"
+    cp "tires_$VERSION-1_amd64.deb" "$OUTPUT_DIR/"
     cd "$SCRIPT_DIR"
 
     echo -e "${GREEN}✅ .deb package created: $OUTPUT_DIR/tires_$VERSION-1_amd64.deb${NC}"
@@ -184,6 +188,8 @@ cp libMono.Unix.so %{buildroot}/usr/lib/
 cp storage.json %{buildroot}/etc/tires/storage.json.example
 cp systemd/tires.service %{buildroot}/lib/systemd/system/
 cp systemd/tires.timer %{buildroot}/lib/systemd/system/
+cp systemd/tires-setup-timer.sh %{buildroot}/usr/bin/
+chmod +x %{buildroot}/usr/bin/tires-setup-timer.sh
 
 %post
 ldconfig || :
@@ -203,6 +209,7 @@ fi
 
 %files
 /usr/bin/tires
+/usr/bin/tires-setup-timer.sh
 /usr/lib/libMono.Unix.so
 /etc/tires/storage.json.example
 /lib/systemd/system/tires.service

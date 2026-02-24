@@ -17,5 +17,8 @@ ProtectSystem=strict
 ProtectHome=read-only
 PrivateTmp=true
 
+# Logging configuration (reads LogLevel from /etc/tires/storage.json)
+# Debug output is captured via StandardError=journal
+
 [Install]
 WantedBy=multi-user.target

@@ -30,6 +30,8 @@ sudo ldconfig 2>/dev/null || true
 # Optional: Install systemd files
 sudo cp systemd/*.service /lib/systemd/system/
 sudo cp systemd/*.timer /lib/systemd/system/
+sudo cp systemd/tires-setup-timer.sh /usr/local/bin/
+sudo chmod +x /usr/local/bin/tires-setup-timer.sh
 sudo systemctl daemon-reload
 ```
 
@@ -55,6 +57,27 @@ sudo nano /etc/tires/storage.json
 
 # Example configuration
 sudo cp /usr/share/doc/tires/storage.json.example /etc/tires/storage.json
+```
+
+**Configure timer schedule:**
+
+The timer schedule is controlled by the `RunInterval` field in `/etc/tires/storage.json`:
+
+```json
+{
+  "RunInterval": "hourly",  // minutely, hourly, daily, weekly, monthly
+  ...
+}
+```
+
+Or use systemd calendar format for custom schedules:
+- `"*-*-* 02:00:00"` - Daily at 2 AM
+- `"Mon..Fri *-*-* 09:00:00"` - Weekdays at 9 AM
+- `"*-*-* 00:00:00"` - Daily at midnight
+
+After editing the config, run:
+```bash
+sudo tires-setup-timer.sh
 ```
 
 ### 4. Run

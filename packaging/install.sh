@@ -37,6 +37,8 @@ sudo cp "$SCRIPT_DIR/storage.json" "$INSTALL_PREFIX/share/doc/tires/storage.json
 echo "📦 Copying systemd files..."
 sudo cp "$SCRIPT_DIR/systemd/tires.service" "/lib/systemd/system/" 2>/dev/null || true
 sudo cp "$SCRIPT_DIR/systemd/tires.timer" "/lib/systemd/system/" 2>/dev/null || true
+sudo cp "$SCRIPT_DIR/systemd/tires-setup-timer.sh" "$INSTALL_PREFIX/bin/" 2>/dev/null || true
+sudo chmod +x "$INSTALL_PREFIX/bin/tires-setup-timer.sh" 2>/dev/null || true
 sudo systemctl daemon-reload 2>/dev/null || true
 
 # Verify installation
@@ -46,9 +48,14 @@ echo ""
 echo "Usage:"
 echo "  tires /path/to/storage.json"
 echo ""
+echo "Configure timer schedule:"
+echo "  1. Edit RunInterval in /etc/tires/storage.json"
+echo "  2. Run: sudo tires-setup-timer.sh"
+echo ""
 echo "Enable automatic runs:"
 echo "  sudo systemctl enable --now tires.timer"
 echo ""
 echo "Check status:"
 echo "  systemctl status tires.timer"
+echo "  systemctl list-timers tires.timer"
 echo ""

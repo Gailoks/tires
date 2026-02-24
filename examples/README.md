@@ -2,6 +2,45 @@
 
 Detailed configuration examples for common use cases.
 
+**🇷🇺 [Русская версия](README.ru.md)**
+
+---
+
+## How Rules Work
+
+Files are sorted by **score** and assigned to tiers in order:
+1. **Lower score** → assigned **first** → goes to **faster tier (SSD/NVMe)**
+2. **Higher score** → assigned **later** → goes to **slower tier (HDD/Archive)**
+
+### SizeRule — Quick Reference
+
+| Reverse | Sort Order | First Files Go To | Use Case |
+|---------|-----------|-------------------|----------|
+| `false` (default) | Small → Large | **Small files on SSD** | Keep small files fast |
+| `true` | Large → Small | **Large files on SSD** | Keep large files fast |
+
+### NameRule — Quick Reference
+
+| Reverse | Files Go to SSD | Files Go to HDD | Use Case |
+|---------|-----------------|-----------------|----------|
+| `false` (default) | **Non-matching** | Matching | Move specific types away |
+| `true` | **Matching** | Non-matching | Keep specific types fast |
+
+### TimeRule — Quick Reference
+
+| Reverse | Sort Order | Files Go to SSD | Files Go to HDD | Use Case |
+|---------|-----------|-----------------|-----------------|----------|
+| `false` (default) | Old → New | **Old files** | New files | Archive recent files |
+| `true` | New → Old | **New files** | Old files | Keep recent files fast |
+
+**Remember:** 
+- **Size** (default) → **Smaller first** → Small files stay on SSD
+- **Size reverse** → **Bigger first** → Large files stay on SSD
+- **Name** (default) → **Non-matching first** → Matching files move to HDD
+- **Name reverse** → **Matching first** → Matching files stay on SSD
+- **Time** (default) → **Old files first** → Old files stay on SSD
+- **Time reverse** → **New files first** → New files stay on SSD
+
 ---
 
 ## Example 1: Basic 2-Tier Setup (SSD + HDD)
@@ -122,7 +161,7 @@ Detailed configuration examples for common use cases.
 
 ## Example 3: Sort Videos by Size
 
-**Use case:** Move large videos to slow storage, keep small previews fast
+**Use case:** Keep large videos on fast SSD for quick editing, move small files to HDD
 
 ### Configuration
 
@@ -147,17 +186,29 @@ Detailed configuration examples for common use cases.
 
 ### What This Does
 
-- **Reverse: true** — Large files sorted first → go to slower tier
-- **Result:** Small videos on SSD, large videos on HDD
+- **`Reverse: true`** — Large files sorted first (lower score) → **go to faster tier (SSD)**
+- **Result:** Large videos on SSD, small files on HDD
 
 ### File Distribution
 
-| File | Size | Location |
-|------|------|----------|
-| preview.mp4 | 5MB | SSD |
-| clip.mp4 | 50MB | SSD |
-| movie_720p.mp4 | 500MB | HDD |
-| movie_4k.mp4 | 4GB | HDD |
+| File | Size | Location | Why |
+|------|------|----------|-----|
+| movie_4k.mp4 | 4GB | **SSD** | Largest, processed first |
+| movie_720p.mp4 | 500MB | **SSD** | Large, processed early |
+| clip.mp4 | 50MB | HDD | Smaller, processed later |
+| preview.mp4 | 5MB | HDD | Smallest, processed last |
+
+### Size Rule Behavior
+
+```
+Reverse: true → Score = -Size
+- 4GB file: score = -4000000 (lowest) → SSD first
+- 5MB file: score = -5000 (highest) → HDD last
+```
+
+**Want the opposite?** Use `"Reverse": false` (default):
+- Small files (5MB, 50MB) → SSD
+- Large files (500MB, 4GB) → HDD
 
 ---
 
@@ -211,7 +262,7 @@ Detailed configuration examples for common use cases.
 
 | Tier | Target | Purpose |
 |------|--------|---------|
-| NVMe | 80% | Active projects, dependencies |
+| NVMe | 80% | Active projects, dependencies, **new builds** |
 | SATA | 90% | Recent builds, resources |
 | Archive | 100% | Old builds, backups |
 
@@ -219,7 +270,7 @@ Detailed configuration examples for common use cases.
 
 1. **node_modules (Ignore):** Never move npm packages
 2. **current_project (Ignore):** Keep active work fast
-3. **builds (Time + Reverse):** Old builds → archive
+3. **builds (Time + Reverse):** **New builds → NVMe first**, old builds → archive
 
 ### Expected Distribution
 
@@ -227,16 +278,22 @@ Detailed configuration examples for common use cases.
 /mnt/nvme/
 ├── node_modules/     ← Never moves
 ├── current_project/  ← Never moves
-└── recent_builds/    ← New builds only
+└── recent_builds/    ← New builds (Reverse: true - new files first)
 
 /mnt/sata/
 ├── resources/        ← Medium access
 └── builds/           ← Recent builds (last week)
 
 /mnt/archive/
-├── old_builds/       ← Old builds (reverse time sort)
+├── old_builds/       ← Old builds (processed last)
 └── backups/          ← Historical data
 ```
+
+### Time Rule on Builds
+
+With `"RuleType": "Time", "Reverse": true`:
+- **New builds** (modified today) → low negative score → **NVMe first**
+- **Old builds** (modified months ago) → high negative score → **archive last**
 
 ---
 
@@ -279,31 +336,45 @@ Detailed configuration examples for common use cases.
 
 ### What This Does
 
-| Pattern | Priority | Movement |
-|---------|----------|----------|
-| .mp4 | 60 | Videos → slow first |
-| .psd | 50 | Photoshop → slow |
-| .pdf | 40 | Documents → slow |
+**Default behavior (Reverse: false):** Non-matching files get score 0, matching files get score 1
+
+| Pattern | Priority | Non-Match Score | Match Score | Files Go to Fast | Files Go to Slow |
+|---------|----------|-----------------|-------------|------------------|------------------|
+| .mp4 | 60 | 0 | 1 | **Other files** | .mp4 files |
+| .psd | 50 | 0 | 1 | **Other files** | .psd files |
+| .pdf | 40 | 0 | 1 | **Other files** | .pdf files |
 
 ### Result
 
 ```
 /mnt/fast/
-├── source/           ← .cpp, .h files
-├── configs/          ← .json, .yaml
-└── cache/            ← Temporary files
+├── source/           ← .cpp, .h files (don't match any pattern)
+├── configs/          ← .json, .yaml (don't match any pattern)
+└── cache/            ← Temporary files (don't match any pattern)
 
 /mnt/slow/
-├── media/            ← .mp4 files (priority 60)
-├── projects/         ← .psd files (priority 50)
-└── documents/        ← .pdf files (priority 40)
+├── media/            ← .mp4 files (match priority 60)
+├── projects/         ← .psd files (match priority 50)
+└── documents/        ← .pdf files (match priority 40)
 ```
+
+### Name Rule Behavior
+
+```
+Reverse: false → Matching files get score 1, non-matching get 0
+- .cpp file: score = 0 (lowest) → fast tier first
+- .mp4 file: score = 1 (highest) → slow tier last
+```
+
+**Want to keep matching files fast?** Use `"Reverse": true`:
+- Matching files (score -1) → fast tier
+- Non-matching files (score 0) → slow tier
 
 ---
 
 ## Example 6: Time-Based Sorting
 
-**Use case:** Move old files to archive, keep recent files fast
+**Use case:** Keep old files fast, move recent files to archive (or vice versa)
 
 ### Configuration
 
@@ -343,21 +414,36 @@ Detailed configuration examples for common use cases.
 
 ### What This Does
 
-1. **documents (Modify):** Old documents → slow storage
-2. **logs (Access + Reverse):** Recently accessed logs → fast storage
+**Timestamp scoring:** Older files = lower timestamp = lower score → processed first
+
+1. **documents (Modify, default):** Old files have low timestamp → **old files → fast**, new files → slow
+2. **logs (Access + Reverse):** New files get negative score → **recently accessed → fast**, old → slow
 
 ### File Movement by Age
 
 ```
-documents/:
-  today.txt      → /mnt/fast/   (modified today)
-  yesterday.txt  → /mnt/fast/   (modified yesterday)
-  last_week.txt  → /mnt/slow/   (modified 7 days ago)
-  last_month.txt → /mnt/slow/   (modified 30 days ago)
+documents/ (Reverse: false - old files first):
+  old_doc.txt      → /mnt/fast/   (modified 30 days ago, lowest timestamp)
+  last_week.txt    → /mnt/fast/   (modified 7 days ago)
+  yesterday.txt    → /mnt/slow/   (modified 1 day ago)
+  today.txt        → /mnt/slow/   (modified today, highest timestamp)
 
-logs/:
-  access.log     → /mnt/fast/   (accessed recently)
-  old.log        → /mnt/slow/   (not accessed lately)
+logs/ (Reverse: true - new files first):
+  access.log       → /mnt/fast/   (accessed today, lowest negative score)
+  recent.log       → /mnt/fast/   (accessed yesterday)
+  old.log          → /mnt/slow/   (not accessed lately, highest negative score)
+```
+
+### Time Rule Behavior
+
+```
+Reverse: false → Score = timestamp (seconds since epoch)
+- Old file (year 2020): score = 1577836800 (lower) → fast tier first
+- New file (year 2025): score = 1735689600 (higher) → slow tier last
+
+Reverse: true → Score = -timestamp
+- New file (year 2025): score = -1735689600 (lower) → fast tier first
+- Old file (year 2020): score = -1577836800 (higher) → slow tier last
 ```
 
 ---
@@ -413,13 +499,15 @@ find /tmp/test-cold -name "*.bin"  # Should have large files
 
 ### Expected Result
 
+**Default behavior (no FolderRules):** Small files sorted first → go to hot tier
+
 ```
 /tmp/test-hot/
-├── small.bin    (100KB)  ← Fits in 2MB mock
-└── medium.bin   (500KB)  ← Fits in remaining space
+├── small.bin    (100KB)  ← Smallest, processed first → hot tier
+└── medium.bin   (500KB)  ← Medium, fits in remaining space
 
 /tmp/test-cold/
-└── large.bin    (1.5MB)  ← Too big for hot tier
+└── large.bin    (1.5MB)  ← Largest, processed last → cold tier
 ```
 
 ---
@@ -479,11 +567,11 @@ find /tmp/test-cold -name "*.bin"  # Should have large files
 
 /mnt/sata/ (Fast)
 ├── raw/                ← .dng files (priority 60)
-├── exports/            ← Small exports (priority 50)
+├── exports/            ← Large exports (priority 50, Reverse: true)
 └── recent/             ← Recent completed projects
 
 /mnt/archive/ (Slow)
-├── exports/            ← Large exports (reverse size)
+├── exports/            ← Small exports (processed last)
 └── completed/          ← Old projects (reverse time)
 ```
 
@@ -492,9 +580,17 @@ find /tmp/test-cold -name "*.bin"  # Should have large files
 | Folder | Rule | Priority | Effect |
 |--------|------|----------|--------|
 | current_project | Ignore | 100 | Never moves |
-| raw | Name (.dng) | 60 | RAW files → archive |
-| exports | Size (reverse) | 50 | Large exports → archive |
-| completed | Time (reverse) | 30 | Old projects → archive |
+| raw | Name (.dng) | 60 | RAW files → NVMe first |
+| exports | Size (reverse) | 50 | **Large exports → NVMe**, small → archive |
+| completed | Time (reverse) | 30 | **New projects → NVMe**, old → archive |
+
+### Size Rule on Exports
+
+With `"RuleType": "Size", "Reverse": true`:
+- **Large exports** (4K videos, 500MB+) → sorted first → **stay on NVMe**
+- **Small exports** (previews, 10MB) → sorted last → move to archive
+
+**Why?** Large files get negative score (e.g., -500000000), small files get less negative score (e.g., -10000000). Lower scores go to faster tiers.
 
 ---
 

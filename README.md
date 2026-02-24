@@ -68,6 +68,8 @@ sudo systemctl enable --now tires.timer
 
 **📚 For detailed examples, see [examples/](examples/README.md)**
 
+**🇷🇺 [Русские примеры](examples/README.ru.md)**
+
 ---
 
 ## Configuration
@@ -124,7 +126,7 @@ sudo systemctl enable --now tires.timer
 | `PathPrefix` | string | Folder path to match |
 | `Priority` | int | Higher = processed first |
 | `RuleType` | string | `Size`, `Name`, `Time`, `Ignore` |
-| `Reverse` | bool | Reverse sort order |
+| `Reverse` | bool | Reverse sort order (see Rules section) |
 | `Pattern` | string | Pattern for Name rule |
 | `TimeType` | string | `Access`, `Modify`, `Change` |
 
@@ -142,24 +144,63 @@ Files in matching folders are **never moved**:
 
 ### SizeRule — Sort by Size
 
+Sorts files by their size. Files are assigned to tiers based on sort order — **first files go to faster tier (SSD)**.
+
 ```json
 {"PathPrefix": "videos", "Priority": 50, "RuleType": "Size", "Reverse": true}
 ```
 
-- `Reverse: true` — Large files first (→ slower tier)
-- `Reverse: false` — Small files first (→ faster tier)
+| Reverse | Sort Order | Files Go to SSD | Files Go to HDD |
+|---------|-----------|-----------------|-----------------|
+| `false` (default) | Small → Large | **Small files** | Large files |
+| `true` | Large → Small | **Large files** | Small files |
+
+**Examples:**
+
+- `"Reverse": false` — Small files processed first → **stay on SSD** (1MB, 5MB), large files → HDD (100MB, 1GB)
+- `"Reverse": true` — Large files processed first → **stay on SSD** (1GB, 500MB), small files → HDD (10MB, 5MB)
 
 ### NameRule — Sort by Pattern
+
+Sorts files by whether they match a pattern. Matching files get higher score (go to slower tier).
 
 ```json
 {"PathPrefix": "media", "Priority": 30, "RuleType": "Name", "Pattern": ".mp4"}
 ```
 
+| Reverse | Match Score | Non-Match Score | Files Go to SSD | Files Go to HDD |
+|---------|-------------|-----------------|-----------------|-----------------|
+| `false` (default) | 1 | 0 | **Non-matching** | Matching |
+| `true` | -1 | 0 | **Matching** | Non-matching |
+
+**Examples:**
+
+- `"Reverse": false` — Non-matching files (score 0) → **SSD**, matching files (score 1) → HDD
+- `"Reverse": true` — Matching files (score -1) → **SSD**, non-matching files (score 0) → HDD
+
 ### TimeRule — Sort by Time
+
+Sorts files by timestamp. Newer files have higher score (go to slower tier).
 
 ```json
 {"PathPrefix": "documents", "Priority": 20, "RuleType": "Time", "TimeType": "Modify"}
 ```
+
+| TimeType | Description |
+|----------|-------------|
+| `Access` | Last access time |
+| `Modify` | Last modification time |
+| `Change` | Last metadata change |
+
+| Reverse | Sort Order | Files Go to SSD | Files Go to HDD |
+|---------|-----------|-----------------|-----------------|
+| `false` (default) | Old → New | **Old files** | New files |
+| `true` | New → Old | **New files** | Old files |
+
+**Examples:**
+
+- `"Reverse": false` — Old files (low timestamp) → **SSD**, new files (high timestamp) → HDD
+- `"Reverse": true` — New files (low negative score) → **SSD**, old files (high negative score) → HDD
 
 ---
 
@@ -439,7 +480,9 @@ sudo systemctl enable --now tires.timer
 
 ## Примеры
 
-Подробные примеры на английском: **[examples/README.md](examples/README.md)**
+Подробные примеры:
+- **[🇬🇧 English](examples/README.md)**
+- **[🇷🇺 Русский](examples/README.ru.md)**
 
 ### Краткие примеры
 
@@ -469,12 +512,67 @@ sudo systemctl enable --now tires.timer
 
 ## Правила
 
-| Правило | Описание |
-|---------|----------|
-| `Ignore` | Исключить папки из перемещения |
-| `Size` | Сортировка по размеру |
-| `Name` | Сортировка по паттерну имени |
-| `Time` | Сортировка по времени |
+### IgnoreRule — Исключить папки
+
+Файлы в указанных папках **никогда не перемещаются**:
+
+```json
+{"PathPrefix": "important", "Priority": 100, "RuleType": "Ignore"}
+```
+
+### SizeRule — Сортировка по размеру
+
+| Reverse | Порядок | Файлы на SSD | Файлы на HDD |
+|---------|---------|--------------|--------------|
+| `false` (по умолчанию) | Малые → Большие | **Малые файлы** | Большие файлы |
+| `true` | Большие → Малые | **Большие файлы** | Малые файлы |
+
+**Примеры:**
+
+- `"Reverse": false` — Малые файлы сначала → **остаются на SSD** (1МБ, 5МБ), большие → HDD (100МБ, 1ГБ)
+- `"Reverse": true` — Большие файлы сначала → **остаются на SSD** (1ГБ, 500МБ), малые → HDD (10МБ, 5МБ)
+
+### NameRule — Сортировка по паттерну
+
+Сортирует файлы по совпадению с паттерном. Совпадающие файлы получают высокий балл (идут на медленный диск).
+
+```json
+{"PathPrefix": "media", "Priority": 30, "RuleType": "Name", "Pattern": ".mp4"}
+```
+
+| Reverse | Балл совпадения | Балл несовпадения | Файлы на SSD | Файлы на HDD |
+|---------|-----------------|-------------------|--------------|--------------|
+| `false` (по умолчанию) | 1 | 0 | **Несовпадающие** | Совпадающие |
+| `true` | -1 | 0 | **Совпадающие** | Несовпадающие |
+
+**Примеры:**
+
+- `"Reverse": false` — Несовпадающие файлы (балл 0) → **SSD**, совпадающие (балл 1) → HDD
+- `"Reverse": true` — Совпадающие файлы (балл -1) → **SSD**, несовпадающие (балл 0) → HDD
+
+### TimeRule — Сортировка по времени
+
+Сортирует файлы по временной метке. Новые файлы имеют высокий балл (идут на медленный диск).
+
+```json
+{"PathPrefix": "documents", "Priority": 20, "RuleType": "Time", "TimeType": "Modify"}
+```
+
+| TimeType | Описание |
+|----------|----------|
+| `Access` | Время последнего доступа |
+| `Modify` | Время последнего изменения |
+| `Change` | Время последнего изменения метаданных |
+
+| Reverse | Порядок | Файлы на SSD | Файлы на HDD |
+|---------|---------|--------------|--------------|
+| `false` (по умолчанию) | Старые → Новые | **Старые файлы** | Новые файлы |
+| `true` | Новые → Старые | **Новые файлы** | Старые файлы |
+
+**Примеры:**
+
+- `"Reverse": false` — Старые файлы (низкая метка) → **SSD**, новые (высокая метка) → HDD
+- `"Reverse": true` — Новые файлы (низкий отрицательный балл) → **SSD**, старые (высокий отрицательный балл) → HDD
 
 ## Тесты
 
@@ -486,4 +584,4 @@ sudo systemctl enable --now tires.timer
 
 ---
 
-**Полная документация выше ↑** | **[Примеры](examples/README.md)**
+**Полная документация выше ↑** | **[Примеры](examples/README.ru.md)** | **[Examples](examples/README.md)**

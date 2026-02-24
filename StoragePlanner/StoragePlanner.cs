@@ -34,10 +34,11 @@ public class StoragePlanner : IStoragePlanner
 		var sortedMovable = ApplySortingRules(movableFiles);
 
 		// Step 3: Calculate distribution boundaries based on available space
-		var boundaries = CalculateBoundaries(sortedMovable);
+		// This also reorganizes files so each tier gets consecutive ranges
+		var (reorganizedFiles, boundaries) = CalculateBoundaries(sortedMovable);
 
 		_logger.LogInformation("File distribution completed");
-		return (sortedMovable, boundaries);
+		return (reorganizedFiles, boundaries);
 	}
 
 	private (List<FileEntry> Excluded, List<FileEntry> Movable) SeparateExcludedFiles(List<FileEntry> files)
@@ -122,66 +123,71 @@ public class StoragePlanner : IStoragePlanner
 		return result;
 	}
 
-	private List<int> CalculateBoundaries(List<FileEntry> sortedFiles)
+	private (List<FileEntry> ReorganizedFiles, List<int> Boundaries) CalculateBoundaries(List<FileEntry> sortedFiles)
 	{
-		List<int> indexes = new();
-		int currentIndex = 0;
+		List<int> boundaries = new();
+		var assignedIndices = new HashSet<int>();
+		var tierFiles = new List<List<FileEntry>>();
 
 		_logger.LogDebug("Calculating boundaries for {TierCount} tiers with {FileCount} movable files",
 			_tiers.Count, sortedFiles.Count);
 
-		// For each tier, calculate how much space is available for new files
-		// tier.Free already accounts for target% and used space
-		for (int a = 0; a < _tiers.Count; a++)
+		// For each tier (except last), calculate which files fit based on priority order
+		for (int a = 0; a < _tiers.Count - 1; a++)
 		{
 			var tier = _tiers[a];
-			
-			// tier.Free is the available space considering target percentage
-			// For hot tier (a=0), this is the space we can fill
-			// For other tiers, we need to calculate remaining capacity
-			long allowedBytes;
-			
-			if (a == 0)
-			{
-				// Hot tier: use Free space (already calculated based on target)
-				allowedBytes = Math.Max(0, tier.Free);
-			}
-			else
-			{
-				// Other tiers: use remaining capacity after hot tier fills up
-				// This is a simplified approach - in reality, we'd need to track
-				// cumulative space across tiers
-				long targetCapacity = (long)(tier.Capacity * tier.Target / 100.0);
-				allowedBytes = Math.Max(0, targetCapacity);
-			}
+			long allowedBytes = Math.Max(0, tier.Free);
+			var tierFileList = new List<FileEntry>();
 
 			_logger.LogDebug("Tier {TierIndex}: capacity={Capacity}, target={Target}%, free={Free}, allowed={Allowed}",
 				a, tier.Capacity, tier.Target, tier.Free, allowedBytes);
 
 			long cumulative = 0;
-			int lastIndex = currentIndex - 1;
 
-			for (int i = currentIndex; i < sortedFiles.Count; i++)
+			// Try to fit files in priority order (greedy bin-packing)
+			// Continue through ALL files, not just consecutive ones
+			for (int i = 0; i < sortedFiles.Count; i++)
 			{
+				if (assignedIndices.Contains(i))
+					continue;
+
 				if (cumulative + sortedFiles[i].Size <= allowedBytes)
 				{
 					cumulative += sortedFiles[i].Size;
-					lastIndex = i;
-				}
-				else
-				{
-					break;
+					assignedIndices.Add(i);
+					tierFileList.Add(sortedFiles[i]);
 				}
 			}
 
-			indexes.Add(lastIndex);
-			currentIndex = lastIndex + 1;
-
-			_logger.LogDebug("Tier {TierIndex}: assigned files {Start} to {End} ({Bytes} bytes)",
-				a, a == 0 ? 0 : indexes[a - 1] + 1, lastIndex, cumulative);
+			tierFiles.Add(tierFileList);
+			_logger.LogDebug("Tier {TierIndex}: assigned {Count} files ({Bytes} bytes)",
+				a, tierFileList.Count, cumulative);
 		}
 
-		return indexes;
+		// Last tier gets all remaining files (overflow)
+		var lastTierFiles = new List<FileEntry>();
+		for (int i = 0; i < sortedFiles.Count; i++)
+		{
+			if (!assignedIndices.Contains(i))
+				lastTierFiles.Add(sortedFiles[i]);
+		}
+		tierFiles.Add(lastTierFiles);
+
+		_logger.LogDebug("Tier {TierIndex} (last): assigned {Count} files",
+			_tiers.Count - 1, lastTierFiles.Count);
+
+		// Reorganize files: concatenate all tier files in order
+		var reorganizedFiles = new List<FileEntry>();
+		int cumulativeCount = 0;
+		foreach (var tierFileList in tierFiles)
+		{
+			reorganizedFiles.AddRange(tierFileList);
+			cumulativeCount += tierFileList.Count;
+			// Boundary is the index of the last file for this tier
+			boundaries.Add(cumulativeCount - 1);
+		}
+
+		return (reorganizedFiles, boundaries);
 	}
 
 	private bool MatchesFolder(FolderPlan plan, FileEntry file)
