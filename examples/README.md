@@ -54,8 +54,8 @@ Files are sorted by **score** and assigned to tiers in order:
 
 | Reverse | Files Go to SSD | Files Go to HDD | Use Case |
 |---------|-----------------|-----------------|----------|
-| `false` (default) | **Non-matching** | Matching | Move specific types away |
-| `true` | **Matching** | Non-matching | Keep specific types fast |
+| `false` (default) | **Matching** | Non-matching | Keep specific types fast |
+| `true` | **Non-matching** | Matching | Move specific types away |
 
 ### TimeRule — Quick Reference
 
@@ -367,39 +367,39 @@ With `"RuleType": "Time", "Reverse": true`:
 
 ### What This Does
 
-**Default behavior (Reverse: false):** Non-matching files get score 0, matching files get score 1
+**Default behavior (Reverse: false):** Matching files get score 1, non-matching files get score 0
 
-| Pattern | Priority | Non-Match Score | Match Score | Files Go to Fast | Files Go to Slow |
-|---------|----------|-----------------|-------------|------------------|------------------|
-| .mp4 | 60 | 0 | 1 | **Other files** | .mp4 files |
-| .psd | 50 | 0 | 1 | **Other files** | .psd files |
-| .pdf | 40 | 0 | 1 | **Other files** | .pdf files |
+| Pattern | Priority | Match Score | Non-Match Score | Files Go to Fast | Files Go to Slow |
+|---------|----------|-------------|-----------------|------------------|------------------|
+| .mp4 | 60 | 1 | 0 | **Matching (.mp4)** | Other files |
+| .psd | 50 | 1 | 0 | **Matching (.psd)** | Other files |
+| .pdf | 40 | 1 | 0 | **Matching (.pdf)** | Other files |
 
 ### Result
 
 ```
 /mnt/fast/
-├── source/           ← .cpp, .h files (don't match any pattern)
-├── configs/          ← .json, .yaml (don't match any pattern)
-└── cache/            ← Temporary files (don't match any pattern)
-
-/mnt/slow/
 ├── media/            ← .mp4 files (match priority 60)
 ├── projects/         ← .psd files (match priority 50)
 └── documents/        ← .pdf files (match priority 40)
+
+/mnt/slow/
+├── source/           ← .cpp, .h files (don't match any pattern)
+├── configs/          ← .json, .yaml (don't match any pattern)
+└── cache/            ← Temporary files (don't match any pattern)
 ```
 
 ### Name Rule Behavior
 
 ```
 Reverse: false → Matching files get score 1, non-matching get 0
-- .cpp file: score = 0 (lowest) → fast tier first
-- .mp4 file: score = 1 (highest) → slow tier last
+- .mp4 file: score = 1 (higher) → slow tier last
+- .cpp file: score = 0 (lower) → fast tier first
 ```
 
-**Want to keep matching files fast?** Use `"Reverse": true`:
-- Matching files (score -1) → fast tier
-- Non-matching files (score 0) → slow tier
+**Want to move matching files away?** Use `"Reverse": true`:
+- Matching files (score -1) → slow tier
+- Non-matching files (score 0) → fast tier
 
 ---
 

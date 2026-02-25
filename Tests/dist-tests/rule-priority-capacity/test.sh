@@ -32,8 +32,8 @@ cat > "$TEST_ROOT/storage.json" << EOF
         {"target": 100, "path": "$COLD", "MockCapacity": $COLD_CAPACITY}
     ],
     "FolderRules": [
-        {"PathPrefix": "priority", "Priority": 100, "RuleType": "Size", "Reverse": false},
-        {"PathPrefix": "normal", "Priority": 50, "RuleType": "Size", "Reverse": false}
+        {"PathPrefix": "priority", "Priority": 100, "RuleType": "Size", "Reverse": true},
+        {"PathPrefix": "normal", "Priority": 50, "RuleType": "Size", "Reverse": true}
     ]
 }
 EOF

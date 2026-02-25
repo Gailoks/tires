@@ -58,13 +58,31 @@ cp "$OUTPUT_DIR/linux-x64/libMono.Unix.so" "$PACKAGE_DIR/"
 cp "$SCRIPT_DIR/README.md" "$PACKAGE_DIR/"
 cp "$SCRIPT_DIR/storage.json" "$PACKAGE_DIR/" 2>/dev/null || true
 cp "$SCRIPT_DIR/packaging/INSTALL.md" "$PACKAGE_DIR/" 2>/dev/null || true
-cp "$SCRIPT_DIR/packaging/install.sh" "$PACKAGE_DIR/" 2>/dev/null || true
-cp "$SCRIPT_DIR/packaging/uninstall.sh" "$PACKAGE_DIR/" 2>/dev/null || true
-chmod +x "$PACKAGE_DIR/install.sh" "$PACKAGE_DIR/uninstall.sh" 2>/dev/null || true
+
+# Copy install/uninstall scripts (REQUIRED for tar.gz package)
+if [[ -f "$SCRIPT_DIR/packaging/install.sh" ]]; then
+    cp "$SCRIPT_DIR/packaging/install.sh" "$PACKAGE_DIR/"
+    chmod +x "$PACKAGE_DIR/install.sh"
+else
+    echo -e "${RED}❌ ERROR: packaging/install.sh not found!${NC}"
+    exit 1
+fi
+
+if [[ -f "$SCRIPT_DIR/packaging/uninstall.sh" ]]; then
+    cp "$SCRIPT_DIR/packaging/uninstall.sh" "$PACKAGE_DIR/"
+    chmod +x "$PACKAGE_DIR/uninstall.sh"
+else
+    echo -e "${RED}❌ ERROR: packaging/uninstall.sh not found!${NC}"
+    exit 1
+fi
+
 mkdir -p "$PACKAGE_DIR/systemd"
 cp "$SCRIPT_DIR/packaging/systemd/"*.service "$PACKAGE_DIR/systemd/" 2>/dev/null || true
 cp "$SCRIPT_DIR/packaging/systemd/"*.timer "$PACKAGE_DIR/systemd/" 2>/dev/null || true
-cp "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" "$PACKAGE_DIR/systemd/" 2>/dev/null || true
+if [[ -f "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" ]]; then
+    cp "$SCRIPT_DIR/packaging/systemd/tires-setup-timer.sh" "$PACKAGE_DIR/systemd/"
+    chmod +x "$PACKAGE_DIR/systemd/tires-setup-timer.sh"
+fi
 
 cd "$OUTPUT_DIR"
 tar -czf "tires-$VERSION-linux-x64.tar.gz" "tires-$VERSION-linux-x64"

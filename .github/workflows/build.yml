@@ -70,13 +70,39 @@ jobs:
         cp ./publish/linux-x64/libMono.Unix.so ./release/$PACKAGE_DIR/
         cp README.md ./release/$PACKAGE_DIR/
         cp storage.json ./release/$PACKAGE_DIR/ 2>/dev/null || true
+        
+        # Copy install/uninstall scripts (REQUIRED!)
+        if [[ -f packaging/install.sh ]]; then
+            cp packaging/install.sh ./release/$PACKAGE_DIR/
+            chmod +x ./release/$PACKAGE_DIR/install.sh
+        else
+            echo "::error::packaging/install.sh not found!"
+            exit 1
+        fi
+        
+        if [[ -f packaging/uninstall.sh ]]; then
+            cp packaging/uninstall.sh ./release/$PACKAGE_DIR/
+            chmod +x ./release/$PACKAGE_DIR/uninstall.sh
+        else
+            echo "::error::packaging/uninstall.sh not found!"
+            exit 1
+        fi
+        
         mkdir -p ./release/$PACKAGE_DIR/systemd
         cp packaging/systemd/*.service ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
         cp packaging/systemd/*.timer ./release/$PACKAGE_DIR/systemd/ 2>/dev/null || true
+        if [[ -f packaging/systemd/tires-setup-timer.sh ]]; then
+            cp packaging/systemd/tires-setup-timer.sh ./release/$PACKAGE_DIR/systemd/
+            chmod +x ./release/$PACKAGE_DIR/systemd/tires-setup-timer.sh
+        fi
 
         cd ./release
         tar -czf "$PACKAGE_DIR.tar.gz" "$PACKAGE_DIR"
         echo "✅ tar.gz package created: $(ls -lh *.tar.gz)"
+        
+        # Verify contents
+        echo "📦 tar.gz contents:"
+        tar -tzf "$PACKAGE_DIR.tar.gz" | head -20
 
     # ========== .deb Package ==========
     - name: Create .deb Package

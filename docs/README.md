@@ -97,13 +97,13 @@ Files in matching folders are **never moved**:
 
 | Reverse | Match Score | Non-Match Score | Files Go to SSD | Files Go to HDD |
 |---------|-------------|-----------------|-----------------|-----------------|
-| `false` (default) | 1 | 0 | **Non-matching** | Matching |
-| `true` | -1 | 0 | **Matching** | Non-matching |
+| `false` (default) | 1 | 0 | **Matching** | Non-matching |
+| `true` | -1 | 0 | **Non-matching** | Matching |
 
 **Examples:**
 
-- `"Reverse": false` — Non-matching files → **SSD**, matching files → HDD
-- `"Reverse": true` — Matching files → **SSD**, non-matching files → HDD
+- `"Reverse": false` — Matching files (e.g., .mp4) → **SSD**, non-matching → HDD
+- `"Reverse": true` — Non-matching files → **SSD**, matching files → HDD
 
 ### TimeRule — Sort by Time
 

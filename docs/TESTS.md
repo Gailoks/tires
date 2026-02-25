@@ -17,43 +17,84 @@ All tests run **without sudo** using `MockCapacity` to simulate tier sizes.
 
 ## Available Tests
 
+### Rule Tests (with Size Constraints)
+
+| Test | Description |
+|------|-------------|
+| `rules-comprehensive/size-rule-reverse-true` | SizeRule: smaller files first, limited capacity |
+| `rules-comprehensive/size-rule-reverse-false` | SizeRule: larger files first, limited capacity |
+| `rules-comprehensive/time-rule-reverse-true` | TimeRule: older files first, limited capacity |
+| `rules-comprehensive/time-rule-reverse-false` | TimeRule: newer files first, limited capacity |
+| `rules-comprehensive/name-rule` | NameRule: pattern matching, limited capacity |
+| `rules-comprehensive/ignore-rule` | IgnoreRule: excluded folders stay in place |
+
+### Core Functionality Tests
+
 | Test | Description |
 |------|-------------|
 | `default` | Basic file movement between 2 tiers |
 | `folders` | Nested directory handling |
 | `hardlinks` | Hardlink preservation during moves |
 | `symlink` | Symlink preservation during moves |
-| `folder-rules` | Rule priority and sorting tests |
-| `ignore-rule` | Folder exclusion tests |
+| `logging` | Log file format and rotation |
+
+### Distribution Tests
+
+| Test | Description |
+|------|-------------|
+| `dist-tests/competing-rules` | Competing rules with different priorities |
+| `dist-tests/multiple-rules` | Multiple rules for single folder |
+| `dist-tests/redistribution` | File redistribution (preserving correct placement) |
+| `dist-tests/rule-priority-capacity` | Rule priority with limited capacity |
+| `dist-tests/size-edge-cases` | Size edge cases testing |
+
+### Integration Tests
+
+| Test | Description |
+|------|-------------|
 | `bigfiles` | Large file handling (4MB/8MB mock) |
 | `capacity-limit` | Capacity limit testing (2MB/10MB mock) |
 | `multi-tier` | 3-tier distribution testing |
-| `competing-rules` | Competing rules testing |
-| `multiple-rules` | Multiple rules for single folder testing |
-| `redistribution` | File redistribution testing |
-| `rule-priority-capacity` | Rule priority with limited capacity tests |
-| `size-edge-cases` | Size edge cases testing |
+| `folder-rules/priority` | Rule priority tests |
+| `folder-rules/time-rule` | TimeRule basic test |
+| `folder-rules/name-rule` | NameRule basic test |
+| `ignore-rule/pattern` | IgnoreRule pattern test |
+| `ignore-rule/size` | IgnoreRule size-based test |
 
 ## Test Structure
 
 ```
 Tests/
-├── tires-test-runner.sh    # Main test runner
-├── common.sh               # Shared test utilities
-├── default/                # Basic tests
-├── folders/                # Nested directory tests
-├── hardlinks/              # Hardlink tests
-├── symlink/                # Symlink tests
-├── folder-rules/           # Rule priority tests
-├── ignore-rule/            # Exclusion tests
-├── bigfiles/               # Large file tests
-├── capacity-limit/         # Capacity limit tests
-├── multi-tier/             # 3-tier tests
-├── competing-rules/        # Competing rules tests
-├── multiple-rules/         # Multiple rules tests
-├── redistribution/         # Redistribution tests
-├── rule-priority-capacity/ # Rule priority with capacity tests
-└── size-edge-cases/        # Size edge cases tests
+├── tires-test-runner.sh        # Main test runner
+├── common.sh                   # Shared test utilities
+├── rules-comprehensive/        # Rule tests with size constraints
+│   ├── size-rule-reverse-true/ # SizeRule: smaller files first
+│   ├── size-rule-reverse-false/# SizeRule: larger files first
+│   ├── time-rule-reverse-true/ # TimeRule: older files first
+│   ├── time-rule-reverse-false/# TimeRule: newer files first
+│   ├── name-rule/              # NameRule: pattern matching
+│   └── ignore-rule/            # IgnoreRule: excluded folders
+├── default/                    # Basic tests
+├── folders/                    # Nested directory tests
+├── hardlinks/                  # Hardlink tests
+├── symlink/                    # Symlink tests
+├── logging/                    # Logging tests
+├── folder-rules/               # Rule priority tests
+│   ├── priority/
+│   ├── time-rule/
+│   └── name-rule/
+├── ignore-rule/                # Exclusion tests
+│   ├── pattern/
+│   └── size/
+├── dist-tests/                 # Distribution tests
+│   ├── competing-rules/
+│   ├── multiple-rules/
+│   ├── redistribution/
+│   ├── rule-priority-capacity/
+│   └── size-edge-cases/
+├── bigfiles/                   # Large file tests
+├── capacity-limit/             # Capacity limit tests
+└── multi-tier/                 # 3-tier tests
 ```
 
 ## How Tests Work
@@ -100,11 +141,19 @@ All tests use temporary directories in `/tmp` and do not require superuser privi
 ## Adding New Tests
 
 1. Create a test directory: `mkdir Tests/my-test`
-2. Add `config.json` with test configuration
-3. Add test files to simulate
-4. Run: `./Tests/tires-test-runner.sh my-test`
+2. Add `test.sh` with test script
+3. Run: `./Tests/tires-test-runner.sh my-test`
 
 See existing tests for examples.
+
+## Test Count
+
+As of **February 2026**:
+- **24 total tests**
+- **6 comprehensive rule tests** with size constraints
+- **18 core functionality tests**
+
+All tests pass ✅
 
 ## See Also
 
